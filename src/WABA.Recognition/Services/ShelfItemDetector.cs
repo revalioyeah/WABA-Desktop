@@ -9,20 +9,21 @@ using WABA.Recognition.Models;
 namespace WABA.Recognition.Services;
 
 /// <summary>
-/// Phase 3.1 label-based shelf detector. It only estimates product positions;
-/// it never sends mouse input. Results must be visually verified before use.
+/// Phase 3.1.1 label-based shelf detector. It estimates product positions only;
+/// it never sends mouse input. All target coordinates require visual validation.
 /// </summary>
 public sealed class ShelfItemDetector
 {
     private readonly OcrEngine? _engine;
 
-    // Calibrated as broad starting regions for the standard landscape shop layout.
-    // They are intentionally independent from the order-board ROI.
+    // Calibrated for the user's current 1920x1080-style shop layout. The pulse
+    // region is slightly taller because small package captions sit near its
+    // lower edge. Regions remain percentage-based for other client sizes.
     private static readonly ShelfScanRegion[] DefaultRegions =
     [
-        new("LEFT_SHELF", 4, 13, 35, 58),
-        new("RIGHT_SHELF", 60, 13, 37, 58),
-        new("PULSE_COUNTER", 7, 75, 34, 23)
+        new("LEFT_SHELF", 4, 12, 35, 61),
+        new("RIGHT_SHELF", 60, 12, 37, 61),
+        new("PULSE_COUNTER", 7, 72, 34, 27)
     ];
 
     public ShelfItemDetector()
@@ -40,7 +41,7 @@ public sealed class ShelfItemDetector
 
     public string EngineDescription => _engine is null
         ? "Windows OCR tidak tersedia untuk deteksi rak."
-        : $"Shelf OCR • {_engine.RecognizerLanguage.LanguageTag}";
+        : $"Shelf OCR • {_engine.RecognizerLanguage.LanguageTag} • katalog alias v0.3.1.1";
 
     public async Task<ShelfDetectionResult> DetectAsync(
         CapturedFrame frame,
@@ -58,7 +59,12 @@ public sealed class ShelfItemDetector
             cancellationToken.ThrowIfCancellationRequested();
             var region = regionDefinition.ToPixels(frame.Width, frame.Height);
             var crop = Crop(frame, region);
-            var scaled = Upscale2x(crop);
+
+            // The counter labels are smaller than shelf captions. Use 3x only
+            // for that region to improve 2GB/5GB/E-Wallet recall without making
+            // every OCR pass more expensive.
+            var scale = regionDefinition.Name == "PULSE_COUNTER" ? 3 : 2;
+            var scaled = Upscale(crop, scale);
             var buffer = CryptographicBuffer.CreateFromByteArray(scaled.BgraPixels);
             using var bitmap = SoftwareBitmap.CreateCopyFromBuffer(
                 buffer, BitmapPixelFormat.Bgra8, scaled.Width, scaled.Height, BitmapAlphaMode.Ignore);
@@ -68,72 +74,92 @@ public sealed class ShelfItemDetector
 
             var words = recognized.Lines
                 .SelectMany(line => line.Words)
-                .Where(word => !string.IsNullOrWhiteSpace(word.Text) && word.BoundingRect.Width > 0 && word.BoundingRect.Height > 0)
+                .Where(word => !string.IsNullOrWhiteSpace(word.Text) &&
+                               word.BoundingRect.Width > 0 && word.BoundingRect.Height > 0)
                 .Select(word => new ShelfWord(
                     word.Text.Trim(),
-                    region.X + word.BoundingRect.X / 2d,
-                    region.Y + word.BoundingRect.Y / 2d,
-                    word.BoundingRect.Width / 2d,
-                    word.BoundingRect.Height / 2d))
+                    region.X + word.BoundingRect.X / (double)scale,
+                    region.Y + word.BoundingRect.Y / (double)scale,
+                    word.BoundingRect.Width / (double)scale,
+                    word.BoundingRect.Height / (double)scale))
                 .ToArray();
 
             var rows = BuildCaptionClusters(words, frame.Width);
             var unmatchedLabels = new List<string>();
+            var matchedInRegion = 0;
+
             foreach (var row in rows)
             {
-                // Keep short numeric tokens because some catalog labels are "2 GB",
-                // "5 GB", and "10 GB". Ignore long numeric-only price tokens.
+                // Keep short numeric tokens for labels such as 2 GB, 5 GB and
+                // 10 GB. Long numeric-only price/count tokens are excluded.
                 var labelWords = row.Words.Where(w =>
                     w.Text.Any(char.IsLetter) ||
                     (w.Text.Length <= 2 && w.Text.Any(char.IsDigit))).ToArray();
                 if (labelWords.Length == 0)
                     continue;
 
-                var raw = string.Join(" ", labelWords.OrderBy(w => w.X).Select(w => w.Text));
+                var orderedWords = labelWords.OrderBy(w => w.X).ToArray();
+                var raw = string.Join(" ", orderedWords.Select(w => w.Text));
                 var match = ProductLabelMatcher.Match(raw);
                 if (match.Name is null)
                 {
-                    if (unmatchedLabels.Count < 12)
+                    if (unmatchedLabels.Count < 20)
                         unmatchedLabels.Add(raw);
                     continue;
                 }
 
-                var anchorWords = labelWords.Where(w => w.Text.Any(char.IsLetter)).ToArray();
-                if (anchorWords.Length == 0)
-                    anchorWords = labelWords;
-                var centerX = anchorWords.Average(w => w.CenterX);
-                var labelCenterY = anchorWords.Average(w => w.CenterY);
+                // Use the complete caption bounds, including numeric tokens.
+                // Previously only alphabetic words were used, which shifted
+                // the target for labels such as "2 GB" and "10 GB".
+                var captionLeft = orderedWords.Min(w => w.X);
+                var captionRight = orderedWords.Max(w => w.X + w.Width);
+                var captionTop = orderedWords.Min(w => w.Y);
+                var captionBottom = orderedWords.Max(w => w.Y + w.Height);
+                var captionCenterX = (captionLeft + captionRight) / 2d;
+                var labelCenterY = (captionTop + captionBottom) / 2d;
 
-                // Product thumbnails sit immediately above their caption. This is
-                // an estimate only; the overlay lets the user verify the point.
+                // Product thumbnails are immediately above their captions.
+                // This remains an estimate and must be verified on the overlay.
                 var verticalOffset = Math.Clamp(frame.Height * 0.027d, 12d, 42d);
-                var targetX = (int)Math.Round(centerX);
-                var targetY = (int)Math.Round(labelCenterY - verticalOffset);
-                targetX = Math.Clamp(targetX, 0, frame.Width - 1);
-                targetY = Math.Clamp(targetY, 0, frame.Height - 1);
+                var targetX = Math.Clamp((int)Math.Round(captionCenterX), 0, frame.Width - 1);
+                var targetY = Math.Clamp((int)Math.Round(labelCenterY - verticalOffset), 0, frame.Height - 1);
 
                 var candidate = new ShelfItemDetection(
                     match.Name, targetX, targetY, regionDefinition.Name, raw, match.Confidence);
 
-                // Avoid duplicate OCR fragments for the same caption while allowing
-                // the same product to appear in two different shelf positions.
-                var duplicate = detections.Any(existing =>
+                // Suppress duplicate OCR fragments at nearly identical points,
+                // but preserve the same product if it is stocked in two places.
+                var duplicateIndex = detections.FindIndex(existing =>
                     existing.ProductName == candidate.ProductName &&
-                    Math.Abs(existing.ClientX - candidate.ClientX) < 18 &&
-                    Math.Abs(existing.ClientY - candidate.ClientY) < 18);
-                if (!duplicate)
+                    existing.Area == candidate.Area &&
+                    Math.Abs(existing.ClientX - candidate.ClientX) < 24 &&
+                    Math.Abs(existing.ClientY - candidate.ClientY) < 24);
+
+                if (duplicateIndex < 0)
+                {
                     detections.Add(candidate);
+                    matchedInRegion++;
+                }
+                else if (candidate.Confidence > detections[duplicateIndex].Confidence)
+                {
+                    detections[duplicateIndex] = candidate;
+                }
             }
 
             var unmatched = unmatchedLabels.Count == 0
                 ? "tidak ada"
                 : string.Join(" | ", unmatchedLabels);
-            diagnostics.Add($"{regionDefinition.Name}: {words.Length} token, {rows.Count} klaster, kandidat kumulatif {detections.Count}. Label belum cocok: {unmatched}");
+            diagnostics.Add(
+                $"{regionDefinition.Name}: skala {scale}x, {words.Length} token, " +
+                $"{rows.Count} klaster, {matchedInRegion} cocok. Label belum cocok: {unmatched}");
         }
 
         timer.Stop();
         return new ShelfDetectionResult(
-            detections.OrderBy(item => item.Area).ThenBy(item => item.ClientY).ThenBy(item => item.ClientX).ToArray(),
+            detections.OrderBy(item => item.Area)
+                .ThenBy(item => item.ClientY)
+                .ThenBy(item => item.ClientX)
+                .ToArray(),
             timer.Elapsed,
             _engine.RecognizerLanguage.LanguageTag,
             string.Join(Environment.NewLine, diagnostics));
@@ -141,7 +167,7 @@ public sealed class ShelfItemDetector
 
     private static List<ShelfRow> BuildCaptionClusters(IReadOnlyList<ShelfWord> words, int frameWidth)
     {
-        // First group tokens that share a visual baseline.
+        // Group tokens sharing a visual baseline first.
         var verticalRows = new List<ShelfRow>();
         foreach (var word in words.OrderBy(w => w.CenterY).ThenBy(w => w.X))
         {
@@ -150,13 +176,14 @@ public sealed class ShelfItemDetector
             foreach (var row in verticalRows)
             {
                 var distance = Math.Abs(word.CenterY - row.CenterY);
-                var tolerance = Math.Clamp(Math.Min(word.Height, row.AverageHeight) * 0.8d, 4d, 13d);
+                var tolerance = Math.Clamp(Math.Min(word.Height, row.AverageHeight) * 0.85d, 4d, 14d);
                 if (distance <= tolerance && distance < bestDistance)
                 {
                     best = row;
                     bestDistance = distance;
                 }
             }
+
             if (best is null)
             {
                 best = new ShelfRow();
@@ -165,10 +192,11 @@ public sealed class ShelfItemDetector
             best.Words.Add(word);
         }
 
-        // Then split a long shelf row into separate product captions by horizontal gap.
-        // This matters because several products share the same y-coordinate on a shelf.
+        // Split adjacent products by horizontal gaps. A slightly wider gap
+        // keeps OCR-separated caption tokens together while the product slots
+        // themselves remain much farther apart in the current game layout.
+        var horizontalGap = Math.Clamp(frameWidth * 0.015d, 18d, 30d);
         var clusters = new List<ShelfRow>();
-        var horizontalGap = Math.Clamp(frameWidth * 0.012d, 14d, 28d);
         foreach (var visualRow in verticalRows.OrderBy(row => row.CenterY))
         {
             ShelfRow? current = null;
@@ -181,12 +209,14 @@ public sealed class ShelfItemDetector
                     current = new ShelfRow();
                     clusters.Add(current);
                 }
+
                 current.Words.Add(word);
                 previousRight = double.IsNaN(previousRight)
                     ? word.X + word.Width
                     : Math.Max(previousRight, word.X + word.Width);
             }
         }
+
         return clusters;
     }
 
@@ -202,28 +232,34 @@ public sealed class ShelfItemDetector
         return new CapturedFrame(region.Width, region.Height, stride, pixels, source.CapturedAt);
     }
 
-    private static CapturedFrame Upscale2x(CapturedFrame source)
+    private static CapturedFrame Upscale(CapturedFrame source, int factor)
     {
-        var width = source.Width * 2;
-        var height = source.Height * 2;
+        if (factor <= 1)
+            return source;
+
+        var width = source.Width * factor;
+        var height = source.Height * factor;
         var stride = width * 4;
         var pixels = new byte[stride * height];
+
         for (var y = 0; y < source.Height; y++)
         {
             var sourceRow = y * source.Stride;
-            var targetRow1 = (y * 2) * stride;
-            var targetRow2 = targetRow1 + stride;
             for (var x = 0; x < source.Width; x++)
             {
                 var sourceOffset = sourceRow + x * 4;
-                var targetOffset1 = targetRow1 + x * 8;
-                var targetOffset2 = targetRow2 + x * 8;
-                Buffer.BlockCopy(source.BgraPixels, sourceOffset, pixels, targetOffset1, 4);
-                Buffer.BlockCopy(source.BgraPixels, sourceOffset, pixels, targetOffset1 + 4, 4);
-                Buffer.BlockCopy(source.BgraPixels, sourceOffset, pixels, targetOffset2, 4);
-                Buffer.BlockCopy(source.BgraPixels, sourceOffset, pixels, targetOffset2 + 4, 4);
+                for (var dy = 0; dy < factor; dy++)
+                {
+                    var targetRow = (y * factor + dy) * stride;
+                    for (var dx = 0; dx < factor; dx++)
+                    {
+                        var targetOffset = targetRow + (x * factor + dx) * 4;
+                        Buffer.BlockCopy(source.BgraPixels, sourceOffset, pixels, targetOffset, 4);
+                    }
+                }
             }
         }
+
         return new CapturedFrame(width, height, stride, pixels, source.CapturedAt);
     }
 

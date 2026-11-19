@@ -1,4 +1,4 @@
-# Warung Auto Bag Assistant PC — v0.3.0 (Phase 3.1 Smart Item Detection)
+# Warung Auto Bag Assistant PC — v0.3.1.1 (Phase 3.1.1 Product Matching Fix)
 
 Windows desktop companion prototype for Warung Life Simulator running in Google Play Games on PC.
 
@@ -189,3 +189,12 @@ This change only adjusts the default scan region and documentation. It does not 
 ## Phase 3.1 — Smart Item Detection
 
 Phase 3.1 adds Windows OCR label detection for the left shelf, right shelf, and pulse counter. OCR captions are clustered by both vertical alignment and horizontal gaps so multiple products on the same shelf row can be detected independently. It displays estimated product points and confidence for manual verification only. It does not send clicks or execute orders. See `docs/PHASE3_1_SMART_ITEM_DETECTION.md`.
+
+
+## Phase 3.1.1 — Product Matching & Coordinate Estimate Fix
+
+This update preserves the Phase 2 order OCR and improves shelf-label matching for the current product catalogue. It adds explicit OCR aliases for common compact labels (`E-Wallet`, `2GB`, `5GB`, `10GB`) and common glyph confusions (`Gula`, `Galon`, `Teh celup`, `Teh botol`). The pulse-counter crop is scanned at 3x while the two main shelves remain at 2x to improve small-label recall without increasing the cost of every region.
+
+Target X now uses the full caption bounds, including numeric tokens, so labels such as `2 GB` do not anchor only on `GB`. The scan regions were slightly extended to include lower shelf captions. Area diagnostics and unmatched OCR labels are now included in the detection output.
+
+**Safety boundary remains unchanged:** detections are preview-only estimates. This version does not send clicks or execute orders. Verify every marker before any future interaction phase.

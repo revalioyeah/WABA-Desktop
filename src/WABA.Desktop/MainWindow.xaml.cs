@@ -50,7 +50,7 @@ public partial class MainWindow : Window
         RefreshWindows();
         OrderEngineText.Text = _orderPanelScanner.EngineDescription;
         ShelfDetectionEngineText.Text = _shelfItemDetector.EngineDescription;
-        AddLog("WABA Desktop Phase 3.1 siap • deteksi rak hanya untuk verifikasi.");
+        AddLog("WABA Desktop v0.3.1.1 siap • deteksi rak dan validasi koordinat.");
         AddLog("Capture berjalan terpisah dari proses OCR.");
         AddLog("OCR memakai Windows OCR dan bahasa yang tersedia di perangkat.");
     }
@@ -303,17 +303,20 @@ public partial class MainWindow : Window
             RenderShelfDetectionOverlay();
 
             var lines = result.Items.Select((item, index) =>
-                $"{index + 1}. {item.ProductName} | X={item.ClientX}, Y={item.ClientY} | {item.Area} | cocok {item.Confidence:P0}");
-            ShelfDetectionOutputText.Text = result.Items.Count == 0
+                $"{index + 1}. {item.ProductName} | X={item.ClientX}, Y={item.ClientY} | {item.Area} | skor teks {item.Confidence:P0}");
+            var detectionList = result.Items.Count == 0
                 ? "Belum ada label produk yang cocok. Pastikan rak terlihat jelas dan tidak tertutup."
                 : string.Join(Environment.NewLine, lines);
+            ShelfDetectionOutputText.Text =
+                detectionList + Environment.NewLine + Environment.NewLine +
+                "DIAGNOSTIK AREA" + Environment.NewLine + result.Diagnostics;
 
             ShelfDetectionStatusText.Text = result.Items.Count > 0
                 ? $"Selesai • {result.Items.Count} kandidat lokasi ditemukan dalam {result.Duration.TotalMilliseconds:0} ms. Periksa titik pada preview; belum ada klik yang dikirim."
                 : $"Tidak ada kandidat lokasi • {result.Duration.TotalMilliseconds:0} ms.";
             AddLog($"Deteksi rak: {result.Items.Count} kandidat, {result.Duration.TotalMilliseconds:0} ms.");
             AddLog(result.Diagnostics);
-            FooterStatusText.Text = "Deteksi lokasi selesai. Koordinat hanya perkiraan dan belum digunakan untuk input.";
+            FooterStatusText.Text = "Deteksi lokasi selesai. Periksa kandidat dan diagnostik; koordinat belum digunakan untuk input.";
         }
         catch (Exception ex)
         {
