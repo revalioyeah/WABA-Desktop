@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <AssemblyName>WABA.Desktop</AssemblyName>
+    <RootNamespace>WABA.Desktop</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\WABA.Domain\WABA.Domain.csproj" />
+    <ProjectReference Include="..\WABA.Infrastructure.Windows\WABA.Infrastructure.Windows.csproj" />
+  </ItemGroup>
+</Project>

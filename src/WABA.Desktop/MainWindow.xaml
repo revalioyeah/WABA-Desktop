@@ -1,0 +1,181 @@
+<Window x:Class="WABA.Desktop.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Warung Auto Bag Assistant PC — Phase 1"
+        Width="820" Height="820" MinWidth="760" MinHeight="620"
+        WindowStartupLocation="CenterScreen"
+        Background="{StaticResource WindowBrush}">
+    <Grid Margin="18">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <Grid Grid.Row="0" Margin="0,0,0,16">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <StackPanel>
+                <TextBlock Text="WARUNG AUTO BAG ASSISTANT" FontSize="23" FontWeight="Bold"/>
+                <TextBlock Text="PC DESKTOP COMPANION  •  PHASE 1 FOUNDATION"
+                           Foreground="{StaticResource MutedBrush}" FontSize="11" Margin="1,4,0,0"/>
+            </StackPanel>
+            <Border Grid.Column="1" Background="#183B30" BorderBrush="#2C7458"
+                    BorderThickness="1" CornerRadius="16" Padding="14,7" VerticalAlignment="Center">
+                <StackPanel Orientation="Horizontal">
+                    <Ellipse Width="8" Height="8" Fill="{StaticResource AccentBrush}" Margin="0,0,8,0"/>
+                    <TextBlock Text="WINDOWS DESKTOP" FontSize="11" FontWeight="SemiBold"/>
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="320"/>
+                <ColumnDefinition Width="16"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto">
+                <StackPanel>
+                    <Border Background="{StaticResource PanelBrush}" CornerRadius="12" Padding="16" Margin="0,0,0,12">
+                        <StackPanel>
+                            <TextBlock Text="01  GAME CONNECTION" FontWeight="Bold" FontSize="13" Margin="0,0,0,10"/>
+                            <TextBlock Text="Pilih jendela Google Play Games" Foreground="{StaticResource MutedBrush}" FontSize="11"/>
+                            <ComboBox x:Name="TargetWindowComboBox" DisplayMemberPath="Title"
+                                      SelectionChanged="TargetWindowComboBox_SelectionChanged"/>
+                            <Button Content="↻  Refresh daftar jendela" Click="RefreshWindows_Click"/>
+                            <TextBlock x:Name="TargetDetailsText" Text="Belum ada jendela dipilih"
+                                       Foreground="{StaticResource MutedBrush}" FontSize="11"
+                                       TextWrapping="Wrap" Margin="0,8,0,0"/>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Background="{StaticResource PanelBrush}" CornerRadius="12" Padding="16" Margin="0,0,0,12">
+                        <StackPanel>
+                            <TextBlock Text="02  SCREEN CAPTURE" FontWeight="Bold" FontSize="13" Margin="0,0,0,8"/>
+                            <TextBlock Text="Capture mengambil area client yang terlihat di monitor. Jangan minimalkan atau tutupi jendela game."
+                                       Foreground="{StaticResource MutedBrush}" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,8"/>
+                            <Button Content="▣  Ambil satu frame" Click="CaptureOnce_Click"/>
+                            <Button x:Name="LivePreviewButton" Content="▶  Mulai live preview" Click="LivePreview_Click"/>
+                            <TextBlock x:Name="CaptureInfoText" Text="Belum ada frame"
+                                       Foreground="{StaticResource MutedBrush}" FontSize="11" Margin="0,8,0,0"/>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Background="{StaticResource PanelBrush}" CornerRadius="12" Padding="16" Margin="0,0,0,12">
+                        <StackPanel>
+                            <TextBlock Text="03  MANUAL INPUT TEST" FontWeight="Bold" FontSize="13" Margin="0,0,0,8"/>
+                            <TextBlock Text="Koordinat relatif terhadap client area game (bukan koordinat seluruh monitor)."
+                                       Foreground="{StaticResource MutedBrush}" FontSize="11" TextWrapping="Wrap"/>
+                            <Grid Margin="0,6,0,4">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="12"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel>
+                                    <TextBlock Text="X (client)" FontSize="11"/>
+                                    <TextBox x:Name="CoordinateXTextBox" Text="500"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="2">
+                                    <TextBlock Text="Y (client)" FontSize="11"/>
+                                    <TextBox x:Name="CoordinateYTextBox" Text="400"/>
+                                </StackPanel>
+                            </Grid>
+                            <Button Content="⊙  Test klik kiri" Background="#65452A"
+                                    BorderBrush="#A87942" Click="TestClick_Click"/>
+                            <TextBlock Text="PERINGATAN: tombol ini mengirim klik mouse sungguhan ke game."
+                                       Foreground="#F0C18B" FontSize="10" TextWrapping="Wrap" Margin="0,7,0,0"/>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Background="{StaticResource PanelBrush}" CornerRadius="12" Padding="16">
+                        <StackPanel>
+                            <TextBlock Text="04  PHASE 1 STATUS" FontWeight="Bold" FontSize="13" Margin="0,0,0,10"/>
+                            <StackPanel Orientation="Horizontal" Margin="0,3">
+                                <TextBlock Text="Window enumeration" Width="178" Foreground="#9BA9BA" FontSize="11"/>
+                                <TextBlock Text="READY" Foreground="#65D6A3" FontSize="10" FontWeight="SemiBold"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0,3">
+                                <TextBlock Text="Visible capture" Width="178" Foreground="#9BA9BA" FontSize="11"/>
+                                <TextBlock Text="READY" Foreground="#65D6A3" FontSize="10" FontWeight="SemiBold"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0,3">
+                                <TextBlock Text="Manual mouse test" Width="178" Foreground="#9BA9BA" FontSize="11"/>
+                                <TextBlock Text="MANUAL ONLY" Foreground="#65D6A3" FontSize="10" FontWeight="SemiBold"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0,3">
+                                <TextBlock Text="OCR / automation" Width="178" Foreground="#9BA9BA" FontSize="11"/>
+                                <TextBlock Text="NOT IN PHASE 1" Foreground="#F0C18B" FontSize="10" FontWeight="SemiBold"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+
+            <Border Grid.Column="2" Background="{StaticResource PanelBrush}" CornerRadius="12" Padding="14">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="150"/>
+                    </Grid.RowDefinitions>
+                    <Grid Margin="2,0,2,12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel>
+                            <TextBlock Text="GAME WINDOW PREVIEW" FontWeight="Bold" FontSize="13"/>
+                            <TextBlock Text="Preview area — Phase 1" Foreground="{StaticResource MutedBrush}" FontSize="11" Margin="0,3,0,0"/>
+                        </StackPanel>
+                        <TextBlock Grid.Column="1" x:Name="PreviewStateText" Text="WAITING"
+                                   Foreground="{StaticResource MutedBrush}" FontWeight="Bold" VerticalAlignment="Center"/>
+                    </Grid>
+
+                    <Border Grid.Row="1" Background="#080C12" BorderBrush="#34445A" BorderThickness="1"
+                            CornerRadius="8" ClipToBounds="True">
+                        <Grid>
+                            <Image x:Name="PreviewImage" Stretch="Uniform"/>
+                            <TextBlock x:Name="PreviewPlaceholderText"
+                                       Text="Pilih jendela game, lalu tekan Ambil satu frame"
+                                       Foreground="#8796A9" FontSize="15"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center"
+                                       TextAlignment="Center" TextWrapping="Wrap" Margin="20"/>
+                        </Grid>
+                    </Border>
+
+                    <Border Grid.Row="2" Background="#111A27" CornerRadius="8" Padding="10" Margin="0,12,0,0">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <TextBlock Text="ACTIVITY LOG" FontWeight="Bold" FontSize="11" Margin="0,0,0,6"/>
+                            <ListBox x:Name="ActivityLogListBox" Grid.Row="1"
+                                     Background="Transparent" BorderThickness="0"
+                                     Foreground="#C6D2E0" FontSize="11"
+                                     ScrollViewer.VerticalScrollBarVisibility="Auto"/>
+                        </Grid>
+                    </Border>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <Grid Grid.Row="2" Margin="0,14,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <TextBlock x:Name="FooterStatusText" Text="Ready — pilih jendela game untuk memulai."
+                       Foreground="{StaticResource MutedBrush}" FontSize="11" VerticalAlignment="Center"/>
+            <TextBlock Grid.Column="1" Text=".NET 10  •  WABA PC 0.1.0-phase1"
+                       Foreground="{StaticResource MutedBrush}" FontSize="11" VerticalAlignment="Center"/>
+        </Grid>
+    </Grid>
+</Window>
+
+

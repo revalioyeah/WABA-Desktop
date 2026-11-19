@@ -1,0 +1,41 @@
+<Application x:Class="WABA.Desktop.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             StartupUri="MainWindow.xaml">
+    <Application.Resources>
+        <Color x:Key="WindowBg">#10151E</Color>
+        <Color x:Key="PanelBg">#192231</Color>
+        <Color x:Key="PanelAlt">#202C3D</Color>
+        <Color x:Key="Accent">#65D6A3</Color>
+        <SolidColorBrush x:Key="WindowBrush" Color="{StaticResource WindowBg}"/>
+        <SolidColorBrush x:Key="PanelBrush" Color="{StaticResource PanelBg}"/>
+        <SolidColorBrush x:Key="PanelAltBrush" Color="{StaticResource PanelAlt}"/>
+        <SolidColorBrush x:Key="AccentBrush" Color="{StaticResource Accent}"/>
+        <SolidColorBrush x:Key="MutedBrush" Color="#9BA9BA"/>
+        <Style TargetType="TextBlock">
+            <Setter Property="Foreground" Value="#EDF3FA"/>
+            <Setter Property="FontFamily" Value="Segoe UI"/>
+        </Style>
+        <Style TargetType="Button">
+            <Setter Property="Foreground" Value="#F7FAFC"/>
+            <Setter Property="Background" Value="#2A3A50"/>
+            <Setter Property="BorderBrush" Value="#40536D"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="12,8"/>
+            <Setter Property="Margin" Value="0,3,0,3"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+        <Style TargetType="TextBox">
+            <Setter Property="Foreground" Value="#F7FAFC"/>
+            <Setter Property="Background" Value="#111A27"/>
+            <Setter Property="BorderBrush" Value="#40536D"/>
+            <Setter Property="Padding" Value="8,6"/>
+            <Setter Property="Margin" Value="0,4,0,4"/>
+        </Style>
+        <Style TargetType="ComboBox">
+            <Setter Property="Foreground" Value="#17202D"/>
+            <Setter Property="Padding" Value="6"/>
+            <Setter Property="Margin" Value="0,5,0,5"/>
+        </Style>
+    </Application.Resources>
+</Application>
