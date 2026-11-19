@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net10.0-windows</TargetFramework>
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
     <UseWPF>true</UseWPF>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
@@ -12,5 +12,6 @@
   <ItemGroup>
     <ProjectReference Include="..\WABA.Domain\WABA.Domain.csproj" />
     <ProjectReference Include="..\WABA.Infrastructure.Windows\WABA.Infrastructure.Windows.csproj" />
+    <ProjectReference Include="..\WABA.Recognition\WABA.Recognition.csproj" />
   </ItemGroup>
 </Project>

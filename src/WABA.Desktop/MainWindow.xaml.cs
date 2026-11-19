@@ -1,10 +1,13 @@
 using System.Collections.ObjectModel;
+using System.Threading;
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using WABA.Domain.Models;
 using WABA.Infrastructure.Windows;
+using WABA.Recognition.Models;
+using WABA.Recognition.Services;
 
 namespace WABA.Desktop;
 
@@ -13,12 +16,19 @@ public partial class MainWindow : Window
     private readonly WindowCatalog _windowCatalog = new();
     private readonly DesktopCaptureService _captureService = new();
     private readonly MouseInputService _mouseInputService = new();
+    private readonly OrderPanelScanner _orderPanelScanner = new();
+    private readonly OrderPanelChangeDetector _orderChangeDetector = new();
     private readonly ObservableCollection<GameWindowInfo> _windows = new();
     private readonly ObservableCollection<string> _logs = new();
     private readonly DispatcherTimer _previewTimer;
 
+    private CapturedFrame? _lastFrame;
     private bool _livePreviewRunning;
+    private bool _autoOrderScanEnabled;
     private int _frameCount;
+    private int _captureBusy;
+    private int _scanBusy;
+    private DateTime _lastAutoScanUtc = DateTime.MinValue;
 
     public MainWindow()
     {
@@ -31,12 +41,13 @@ public partial class MainWindow : Window
         {
             Interval = TimeSpan.FromMilliseconds(250)
         };
-        _previewTimer.Tick += (_, _) => CaptureSelectedWindow(isLive: true);
+        _previewTimer.Tick += async (_, _) => await CaptureSelectedWindowAsync(isLive: true);
 
         RefreshWindows();
-        AddLog("WABA Desktop Phase 1 siap.");
-        AddLog("Capture mode: visible desktop client-area capture.");
-        AddLog("OCR dan auto execution belum diaktifkan pada fase ini.");
+        OrderEngineText.Text = _orderPanelScanner.EngineDescription;
+        AddLog("WABA Desktop Phase 2 siap.");
+        AddLog("Capture berjalan terpisah dari proses OCR.");
+        AddLog("OCR memakai Windows OCR dan bahasa yang tersedia di perangkat.");
     }
 
     private GameWindowInfo? SelectedTarget
@@ -74,6 +85,9 @@ public partial class MainWindow : Window
             return;
         }
 
+        _lastFrame = null;
+        _orderChangeDetector.Reset();
+
         TargetDetailsText.Text =
             $"{target.Title}\nProcess: {target.ProcessName}\n" +
             $"Client area: {target.ClientWidth} × {target.ClientHeight}\n" +
@@ -83,38 +97,48 @@ public partial class MainWindow : Window
         FooterStatusText.Text = "Target dipilih. Pastikan game terlihat dan tidak tertutup.";
     }
 
-    private void CaptureOnce_Click(object sender, RoutedEventArgs e)
-        => CaptureSelectedWindow(isLive: false);
+    private async void CaptureOnce_Click(object sender, RoutedEventArgs e)
+        => await CaptureSelectedWindowAsync(isLive: false);
 
-    private void LivePreview_Click(object sender, RoutedEventArgs e)
+    private async void LivePreview_Click(object sender, RoutedEventArgs e)
     {
         if (!_livePreviewRunning)
-        {
-            if (SelectedTarget is null)
-            {
-                MessageBox.Show("Pilih jendela game terlebih dahulu.",
-                    "Target belum dipilih", MessageBoxButton.OK, MessageBoxImage.Information);
-                return;
-            }
-
-            _livePreviewRunning = true;
-            _previewTimer.Start();
-            LivePreviewButton.Content = "■  Stop live preview";
-            PreviewStateText.Text = "LIVE";
-            AddLog("Live preview dimulai (4 FPS).");
-            CaptureSelectedWindow(isLive: true);
-        }
+            await StartLivePreviewAsync();
         else
-        {
-            _previewTimer.Stop();
-            _livePreviewRunning = false;
-            LivePreviewButton.Content = "▶  Mulai live preview";
-            PreviewStateText.Text = "PAUSED";
-            AddLog("Live preview dihentikan.");
-        }
+            StopLivePreview();
     }
 
-    private void CaptureSelectedWindow(bool isLive)
+    private async Task StartLivePreviewAsync()
+    {
+        if (SelectedTarget is null)
+        {
+            MessageBox.Show("Pilih jendela game terlebih dahulu.",
+                "Target belum dipilih", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        _livePreviewRunning = true;
+        _previewTimer.Start();
+        LivePreviewButton.Content = "■  Stop live preview";
+        PreviewStateText.Text = "LIVE";
+        AddLog("Live preview dimulai (4 FPS).");
+        await CaptureSelectedWindowAsync(isLive: true);
+    }
+
+    private void StopLivePreview()
+    {
+        _previewTimer.Stop();
+        _livePreviewRunning = false;
+        LivePreviewButton.Content = "▶  Mulai live preview";
+        PreviewStateText.Text = "PAUSED";
+
+        if (AutoOrderScanCheckBox.IsChecked == true)
+            AutoOrderScanCheckBox.IsChecked = false;
+
+        AddLog("Live preview dihentikan.");
+    }
+
+    private async Task CaptureSelectedWindowAsync(bool isLive)
     {
         var target = SelectedTarget;
         if (target is null)
@@ -124,20 +148,16 @@ public partial class MainWindow : Window
             return;
         }
 
+        if (Interlocked.Exchange(ref _captureBusy, 1) != 0)
+            return;
+
         try
         {
-            var frame = _captureService.CaptureClientArea(target.Handle);
-            var bitmap = BitmapSource.Create(
-                frame.Width,
-                frame.Height,
-                96,
-                96,
-                PixelFormats.Bgra32,
-                null,
-                frame.BgraPixels,
-                frame.Stride);
-            bitmap.Freeze();
+            // GDI screen capture runs off the WPF UI thread so preview rendering stays responsive.
+            var frame = await Task.Run(() => _captureService.CaptureClientArea(target.Handle));
+            _lastFrame = frame;
 
+            var bitmap = ToBitmapSource(frame);
             PreviewImage.Source = bitmap;
             PreviewPlaceholderText.Visibility = Visibility.Collapsed;
 
@@ -146,6 +166,9 @@ public partial class MainWindow : Window
                 $"{frame.Width} × {frame.Height}  •  Frame #{_frameCount}  •  {frame.CapturedAt:HH:mm:ss.fff}";
             PreviewStateText.Text = isLive ? "LIVE" : "CAPTURED";
             FooterStatusText.Text = $"Capture berhasil: {frame.Width}×{frame.Height}.";
+
+            if (_autoOrderScanEnabled)
+                TryStartAutoScan(frame);
         }
         catch (Exception ex)
         {
@@ -154,6 +177,136 @@ public partial class MainWindow : Window
             if (!isLive)
                 AddLog($"Capture gagal: {ex.Message}");
         }
+        finally
+        {
+            Interlocked.Exchange(ref _captureBusy, 0);
+        }
+    }
+
+    private void TryStartAutoScan(CapturedFrame frame)
+    {
+        try
+        {
+            var region = ReadOrderPanelRegion().ToPixels(frame.Width, frame.Height);
+            if (!_orderChangeDetector.HasChanged(frame, region))
+                return;
+
+            var now = DateTime.UtcNow;
+            if (now - _lastAutoScanUtc < TimeSpan.FromMilliseconds(450))
+                return;
+
+            _lastAutoScanUtc = now;
+            _ = ScanOrderPanelAsync(frame, isAutomatic: true);
+        }
+        catch (Exception ex)
+        {
+            OrderScanStatusText.Text = $"ROI tidak valid: {ex.Message}";
+        }
+    }
+
+    private async void ScanOrderPanel_Click(object sender, RoutedEventArgs e)
+    {
+        var frame = _lastFrame;
+        if (frame is null)
+        {
+            await CaptureSelectedWindowAsync(isLive: false);
+            frame = _lastFrame;
+        }
+
+        if (frame is null)
+            return;
+
+        await ScanOrderPanelAsync(frame, isAutomatic: false);
+    }
+
+    private async Task ScanOrderPanelAsync(CapturedFrame frame, bool isAutomatic)
+    {
+        if (Interlocked.Exchange(ref _scanBusy, 1) != 0)
+            return;
+
+        try
+        {
+            var region = ReadOrderPanelRegion();
+            OrderScanStatusText.Text = isAutomatic
+                ? "Perubahan panel terdeteksi • OCR berjalan..."
+                : "Memindai panel pesanan...";
+
+            var result = await _orderPanelScanner.ScanAsync(frame, region);
+
+            OrderCropPreview.Source = ToBitmapSource(result.CroppedFrame);
+            OrderScanMetaText.Text =
+                $"ROI {result.Region.X},{result.Region.Y} • {result.Region.Width}×{result.Region.Height} px  |  " +
+                $"{result.OcrLanguage}  |  {result.Duration.TotalMilliseconds:0} ms";
+
+            var parsedLines = result.Items.Select(item =>
+            {
+                var quantity = item.CompletedQuantity.HasValue && item.RequestedQuantity.HasValue
+                    ? $"{item.CompletedQuantity}/{item.RequestedQuantity}"
+                    : "? / ?";
+                var marker = item.IsKnownProduct ? "" : " [BELUM DIKENALI]";
+                return $"{item.Name}  {quantity}{marker}";
+            });
+
+            var parsedText = result.Items.Count == 0
+                ? "Belum ada item yang dapat dipisahkan."
+                : string.Join(Environment.NewLine, parsedLines);
+
+            OrderScanOutputText.Text =
+                $"HASIL PARSING ({result.Items.Count} item)\n{parsedText}\n\n" +
+                $"TEKS OCR MENTAH\n{(string.IsNullOrWhiteSpace(result.RawText) ? "(tidak ada teks terbaca)" : result.RawText)}";
+
+            OrderScanStatusText.Text = result.Items.Count > 0
+                ? $"Selesai • {result.Items.Count} baris terdeteksi. Periksa hasil sebelum digunakan."
+                : "OCR selesai, tetapi belum menemukan baris item. Periksa crop ROI.";
+
+            AddLog($"OCR {(isAutomatic ? "otomatis" : "manual")}: {result.Items.Count} item, {result.Duration.TotalMilliseconds:0} ms.");
+            FooterStatusText.Text = "Hasil OCR tersedia. Hasil belum digunakan untuk mengirim klik.";
+        }
+        catch (Exception ex)
+        {
+            OrderScanStatusText.Text = $"OCR gagal: {ex.Message}";
+            AddLog($"OCR gagal: {ex.Message}");
+        }
+        finally
+        {
+            Interlocked.Exchange(ref _scanBusy, 0);
+        }
+    }
+
+    private OrderPanelRegion ReadOrderPanelRegion()
+    {
+        if (!int.TryParse(OrderRoiXTextBox.Text, out var x) ||
+            !int.TryParse(OrderRoiYTextBox.Text, out var y) ||
+            !int.TryParse(OrderRoiWidthTextBox.Text, out var width) ||
+            !int.TryParse(OrderRoiHeightTextBox.Text, out var height))
+        {
+            throw new InvalidOperationException("Nilai X, Y, W, H harus berupa angka persentase.");
+        }
+
+        return new OrderPanelRegion(x, y, width, height);
+    }
+
+    private void AutoOrderScanCheckBox_Checked(object sender, RoutedEventArgs e)
+    {
+        if (SelectedTarget is null)
+        {
+            AutoOrderScanCheckBox.IsChecked = false;
+            MessageBox.Show("Pilih jendela game terlebih dahulu.");
+            return;
+        }
+
+        _autoOrderScanEnabled = true;
+        _orderChangeDetector.Reset();
+        AddLog("Pemantauan panel otomatis diaktifkan. OCR hanya berjalan saat ROI berubah.");
+
+        if (!_livePreviewRunning)
+            _ = StartLivePreviewAsync();
+    }
+
+    private void AutoOrderScanCheckBox_Unchecked(object sender, RoutedEventArgs e)
+    {
+        _autoOrderScanEnabled = false;
+        AddLog("Pemantauan panel otomatis dinonaktifkan.");
     }
 
     private async void TestClick_Click(object sender, RoutedEventArgs e)
@@ -194,6 +347,21 @@ public partial class MainWindow : Window
             result.Success ? "Input test" : "Input test gagal",
             MessageBoxButton.OK,
             result.Success ? MessageBoxImage.Information : MessageBoxImage.Warning);
+    }
+
+    private static BitmapSource ToBitmapSource(CapturedFrame frame)
+    {
+        var bitmap = BitmapSource.Create(
+            frame.Width,
+            frame.Height,
+            96,
+            96,
+            PixelFormats.Bgra32,
+            null,
+            frame.BgraPixels,
+            frame.Stride);
+        bitmap.Freeze();
+        return bitmap;
     }
 
     private void AddLog(string message)

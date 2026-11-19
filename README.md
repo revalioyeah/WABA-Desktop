@@ -1,4 +1,4 @@
-# Warung Auto Bag Assistant PC — Phase 1
+# Warung Auto Bag Assistant PC — Phase 2
 
 Windows desktop companion prototype for Warung Life Simulator running in Google Play Games on PC.
 
@@ -97,3 +97,65 @@ Phase 2 will add:
 - Product catalog and coordinate calibration.
 - Order change detection and queue sessions.
 
+
+
+## Phase 2 — Smart Order Recognition
+
+Phase 2 adds a first, testable order-panel recognition path while keeping all Phase 1
+window enumeration, visible capture, and manual click test services.
+
+### Recognition pipeline
+
+1. Capture the selected game client area on a background task.
+2. Crop the order board using a configurable percentage-based ROI.
+3. Upscale the crop 2x before recognition.
+4. Run Windows built-in OCR using a language pack available in the current Windows profile.
+5. Parse OCR lines against the local product dictionary.
+6. Keep unknown product names visible as unknown; they are not eligible for automatic input.
+7. Optional change monitoring samples only the configured order-board ROI and requests OCR
+   after a meaningful visual change. It does not run OCR on every preview frame.
+
+### Initial ROI calibration
+
+The default ROI values are a starting estimate only:
+
+- X: 40%
+- Y: 17%
+- Width: 23%
+- Height: 20%
+
+Use `Scan panel pesanan`, inspect the crop preview, and adjust X/Y/W/H until the crop
+contains the order note and its item rows only. These percentages scale with the captured
+client area, so they also work when the game window is resized.
+
+### Windows OCR language
+
+The OCR adapter uses `Windows.Media.Ocr` and the language packs already installed in
+Windows. It first tries the current user's OCR profile languages and then falls back to
+English (United States) when that OCR language is installed.
+
+If the OCR status says that no engine is available, install an OCR-capable language pack
+from Windows Settings > Time & language > Language & region, then restart WABA.
+
+The engine language is displayed in the UI. Indonesian product names use Latin characters,
+but recognition quality must be validated against actual game screenshots; OCR results
+remain review-only at this phase.
+
+### Phase 2 boundaries
+
+- No automatic item clicks are sent from OCR.
+- No stock/rack coordinate is inferred from the order-panel OCR.
+- Unknown labels and unreadable quantities are preserved for manual review.
+- Automatic panel monitoring runs only while Live Preview is active.
+- The change detector is a lightweight ROI pixel sampler, not a semantic game-state detector.
+  It may require ROI calibration to avoid reacting to visual effects or missing a subtle update.
+
+### Build
+
+The Windows projects now target `net10.0-windows10.0.19041.0` so the app can call Windows
+Runtime OCR APIs. The Domain project remains `net10.0`.
+
+```powershell
+dotnet restore .\WarungAutoBagAssistant.PC.sln
+dotnet build .\WarungAutoBagAssistant.PC.sln -c Release
+```
