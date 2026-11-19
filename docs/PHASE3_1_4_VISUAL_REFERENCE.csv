@@ -1,0 +1,4 @@
+product_name,frame_x_percent,frame_y_percent,reference_frame_width,reference_frame_height,source,validation_status
+Gula,34.7,47.3,1767,992,user_supplied_screenshot,visual_estimate_not_click_validated
+2 GB,20.1,82.7,1767,992,user_supplied_screenshot,slot_roi_estimate_not_click_validated
+5 GB,26.1,82.7,1767,992,user_supplied_screenshot,slot_roi_estimate_not_click_validated

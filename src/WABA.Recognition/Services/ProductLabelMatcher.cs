@@ -25,8 +25,8 @@ internal static class ProductLabelMatcher
             // Counter cards can be read as a single token or split into number
             // and unit fragments. Common 2/Z and 5/S glyph substitutions are
             // scoped to these product labels only.
-            ["2 GB"] = ["2gb", "2 gb", "2g b", "zgb", "z gb"],
-            ["5 GB"] = ["5gb", "5 gb", "5g b", "sgb", "s gb"],
+            ["2 GB"] = ["2gb", "2 gb", "2g b", "zgb", "z gb", "2g8", "2g b"],
+            ["5 GB"] = ["5gb", "5 gb", "5g b", "sgb", "s gb", "50b", "5ob", "s0b", "5g8"],
             ["10 GB"] = ["10gb", "10 gb", "10g b", "i0gb", "iogb"],
             ["Token listrik"] = ["tokenlistrik", "token listrik", "tokenlistr1k"],
             ["Mie rebus"] = ["mi rebus", "mi-rebus"],

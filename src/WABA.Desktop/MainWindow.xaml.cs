@@ -50,7 +50,7 @@ public partial class MainWindow : Window
         RefreshWindows();
         OrderEngineText.Text = _orderPanelScanner.EngineDescription;
         ShelfDetectionEngineText.Text = _shelfItemDetector.EngineDescription;
-        AddLog("WABA Desktop v0.3.1.3 siap • deteksi rak dan validasi koordinat.");
+        AddLog("WABA Desktop v0.3.1.4 siap • targeted ROI OCR; koordinat tetap perlu verifikasi.");
         AddLog("Capture berjalan terpisah dari proses OCR.");
         AddLog("OCR memakai Windows OCR dan bahasa yang tersedia di perangkat.");
     }

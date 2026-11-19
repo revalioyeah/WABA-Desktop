@@ -1,4 +1,4 @@
-# Warung Auto Bag Assistant PC — v0.3.1.3 (Phase 3.1.3 Spatial Counter OCR Fallback)
+# Warung Auto Bag Assistant PC — v0.3.1.4 (Phase 3.1.4 Targeted ROI OCR Fallback)
 
 Windows desktop companion prototype for Warung Life Simulator running in Google Play Games on PC.
 
@@ -214,3 +214,17 @@ This update uses the latest user-reported counter anchors (`E-Wallet`, `10 GB`, 
 `Gula` remains unresolved because the latest OCR diagnostics contain no recognizable text fragment for that label. No coordinate is synthesized for it. Capture a close-up of the left-shelf third row (LPG 3 kg and the adjacent sugar product) if it remains missing.
 
 This phase remains preview-only. It does not send mouse input. The 34 user-reported product coordinates are text/position observations and have not been validated by actual clicks.
+
+
+## Phase 3.1.4 — Targeted ROI fallback for Gula and pulse data cards
+
+This update keeps the normal 2x shelf OCR and 4x counter OCR passes unchanged. Only when a catalogue entry is still missing, it performs a small additional 4x OCR crop:
+
+- `Gula`: a dedicated caption ROI at the far-right slot of row three on `LEFT_SHELF`.
+- `2 GB` and `5 GB`: separate slot ROIs within `PULSE_COUNTER`, using the five-card counter layout.
+
+Counter OCR aliases now include observed glyph substitutions such as `50B`/`5OB` for `5 GB` and `2G8` for `2 GB`. A weak standalone digit can produce only a low-confidence provisional candidate. Exact/fuzzy text matches are capped below the green-marker threshold because the target point is derived from the slot geometry and still requires visual verification.
+
+The targeted passes run only for missing products, not on every frame and not as part of Phase 2 order OCR. At most three small extra OCR crops are processed in one shelf scan. No automatic click or order execution is introduced.
+
+For the supplied 1767x992 reference screenshot, the targeted candidate positions are scaled from client-area proportions. They are preview estimates, not click-validated coordinates. Check every marker in the live WABA preview before any future input phase.

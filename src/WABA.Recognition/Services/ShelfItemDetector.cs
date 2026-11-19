@@ -9,7 +9,7 @@ using WABA.Recognition.Models;
 namespace WABA.Recognition.Services;
 
 /// <summary>
-/// Phase 3.1.2 label-based shelf detector. It estimates product positions only;
+/// Phase 3.1.4 label-based shelf detector. It estimates product positions only;
 /// it never sends mouse input. All target coordinates require visual validation.
 /// </summary>
 public sealed class ShelfItemDetector
@@ -41,7 +41,7 @@ public sealed class ShelfItemDetector
 
     public string EngineDescription => _engine is null
         ? "Windows OCR tidak tersedia untuk deteksi rak."
-        : $"Shelf OCR • {_engine.RecognizerLanguage.LanguageTag} • katalog & pulse OCR v0.3.1.3";
+        : $"Shelf OCR • {_engine.RecognizerLanguage.LanguageTag} • targeted ROI fallback v0.3.1.4";
 
     public async Task<ShelfDetectionResult> DetectAsync(
         CapturedFrame frame,
@@ -157,25 +157,40 @@ public sealed class ShelfItemDetector
                 }
             }
 
-            // A lone OCR digit can be the complete reading of the tiny "2 GB"
-            // counter caption. Infer that product only when the digit is inside
-            // the geometrically expected slot between already-recognized
-            // E-Wallet and 10 GB anchors. The resulting confidence is deliberately
-            // low and the UI renders it as a non-green candidate for validation.
+            // Targeted fallback crops are only scanned when a catalogue label is
+            // missing. This keeps the normal shelf scan fast while giving the
+            // visually small Gula and prepaid-data captions a second OCR pass.
             var spatialFallbackNotes = new List<string>();
+
+            if (regionDefinition.Name == "LEFT_SHELF" &&
+                !detections.Any(item => item.Area == "LEFT_SHELF" &&
+                                        item.ProductName.Equals("Gula", StringComparison.OrdinalIgnoreCase)))
+            {
+                var gula = await TryDetectGulaFallbackAsync(frame, cancellationToken);
+                if (gula is not null)
+                {
+                    detections.Add(gula);
+                    spatialFallbackNotes.Add(
+                        $"Gula fallback OCR cocok ({gula.Confidence:P0}); titik preview X={gula.ClientX}, Y={gula.ClientY}");
+                }
+            }
+
             if (isPulseCounter)
             {
-                var inferred = TryAddSpatiallyAnchoredDataPackages(
-                    detections, unmatchedCaptions, frame.Height);
+                var inferred = await TryDetectCounterSlotFallbacksAsync(
+                    frame, region, detections, cancellationToken);
+
                 foreach (var candidate in inferred)
                 {
                     detections.Add(candidate);
                     spatialFallbackNotes.Add(
-                        $"{candidate.ProductName} kandidat slot X={candidate.ClientX}, Y={candidate.ClientY} " +
-                        $"(skor {candidate.Confidence:P0}; wajib verifikasi visual)");
+                        $"{candidate.ProductName} slot OCR: X={candidate.ClientX}, Y={candidate.ClientY}, " +
+                        $"skor teks {candidate.Confidence:P0}");
                 }
-                matchedInRegion = detections.Count(item => item.Area == regionDefinition.Name);
             }
+
+            matchedInRegion = detections.Count(item =>
+                item.Area.Equals(regionDefinition.Name, StringComparison.OrdinalIgnoreCase));
 
             var unmatched = unmatchedCaptions.Count > 0 && isPulseCounter
                 ? string.Join(" | ", unmatchedCaptions.Select(caption =>
@@ -298,76 +313,214 @@ public sealed class ShelfItemDetector
         return clusters;
     }
 
-    private static IReadOnlyList<ShelfItemDetection> TryAddSpatiallyAnchoredDataPackages(
-        List<ShelfItemDetection> detections,
-        IReadOnlyList<UnmatchedCaption> unmatchedCaptions,
-        int frameHeight)
+    private async Task<ShelfItemDetection?> TryDetectGulaFallbackAsync(
+        CapturedFrame frame,
+        CancellationToken cancellationToken)
     {
-        var wallet = detections.FirstOrDefault(item =>
-            item.Area == "PULSE_COUNTER" && item.ProductName == "E-Wallet");
-        var tenGb = detections.FirstOrDefault(item =>
-            item.Area == "PULSE_COUNTER" && item.ProductName == "10 GB");
-        var token = detections.FirstOrDefault(item =>
-            item.Area == "PULSE_COUNTER" && item.ProductName == "Token listrik");
+        // The current game layout places the Gula caption at the far-right
+        // slot of row three on the left shelf. Scan only that compact label
+        // area; do not infer a detection if OCR cannot read the caption.
+        var roi = PercentageRegion(frame, 0.307d, 0.488d, 0.081d, 0.091d);
+        var read = await ReadExpectedLabelAsync(frame, roi, "Gula", 4, cancellationToken);
+        if (!read.Matched)
+            return null;
 
-        // Three detected anchors establish the five-card counter spacing:
-        // E-Wallet, [2 GB], [5 GB], 10 GB, Token listrik.
-        // Missing packages are only proposed when an OCR fragment is present
-        // near the corresponding geometric slot; no coordinate is fabricated
-        // from the catalogue alone.
-        if (wallet is null || tenGb is null || token is null)
-            return [];
+        // Product thumbnail centre, calibrated against the supplied 1767x992
+        // game capture. Coordinates scale with the captured client dimensions.
+        var targetX = Math.Clamp((int)Math.Round(frame.Width * 0.347d), 0, frame.Width - 1);
+        var targetY = Math.Clamp((int)Math.Round(frame.Height * 0.473d), 0, frame.Height - 1);
 
-        var spacingFromWalletToTen = (tenGb.ClientX - wallet.ClientX) / 3d;
-        var spacingFromTenToToken = (double)token.ClientX - tenGb.ClientX;
-        if (spacingFromWalletToTen is < 65d or > 145d ||
-            spacingFromTenToToken is < 65d or > 145d ||
-            Math.Abs(spacingFromWalletToTen - spacingFromTenToToken) > 24d)
-            return [];
+        return new ShelfItemDetection(
+            "Gula", targetX, targetY, "LEFT_SHELF",
+            $"{read.Raw} [targeted-label-ROI; verify marker]",
+            Math.Min(read.Confidence, 0.94d));
+    }
 
-        var spacing = (spacingFromWalletToTen + spacingFromTenToToken) / 2d;
-        var expectedY = (wallet.ClientY + tenGb.ClientY + token.ClientY) / 3d;
-        var maxXDistance = Math.Clamp(spacing * 0.42d, 28d, 48d);
-        var verticalOffset = Math.Clamp(frameHeight * 0.027d, 12d, 42d);
-        var candidates = new List<ShelfItemDetection>();
-
-        TryCreateCandidate("2 GB", wallet.ClientX + spacing, ["2", "z"], 0.68d);
-        TryCreateCandidate("5 GB", wallet.ClientX + spacing * 2d, ["50b", "5ob", "s0b", "5g", "sgb"], 0.72d);
-        return candidates;
-
-        void TryCreateCandidate(string productName, double expectedX, string[] acceptedFragments, double confidence)
+    private async Task<IReadOnlyList<ShelfItemDetection>> TryDetectCounterSlotFallbacksAsync(
+        CapturedFrame frame,
+        PixelRegion counterRegion,
+        IReadOnlyList<ShelfItemDetection> detections,
+        CancellationToken cancellationToken)
+    {
+        // The counter has five fixed horizontal card slots:
+        // E-Wallet, 2 GB, 5 GB, 10 GB, Token listrik.
+        // Fractions are relative to the counter ROI, so the mapping scales
+        // with the actual captured client size rather than desktop resolution.
+        var slots = new[]
         {
-            if (detections.Any(item => item.Area == "PULSE_COUNTER" &&
-                                       item.ProductName.Equals(productName, StringComparison.OrdinalIgnoreCase)))
-                return;
+            new CounterSlot("2 GB", 0.385d),
+            new CounterSlot("5 GB", 0.562d)
+        };
 
-            var fragment = unmatchedCaptions
-                .Select(caption => new
-                {
-                    Caption = caption,
-                    Compact = new string(caption.Raw.Where(char.IsLetterOrDigit).ToArray()).ToLowerInvariant(),
-                    CenterX = (caption.Left + caption.Right) / 2d,
-                    CenterY = (caption.Top + caption.Bottom) / 2d
-                })
-                .Where(item => acceptedFragments.Contains(item.Compact, StringComparer.OrdinalIgnoreCase))
-                .Where(item => Math.Abs(item.CenterX - expectedX) <= maxXDistance)
-                .Where(item => Math.Abs((item.CenterY - verticalOffset) - expectedY) <= 42d)
-                .OrderBy(item => Math.Abs(item.CenterX - expectedX))
-                .FirstOrDefault();
+        var candidates = new List<ShelfItemDetection>();
+        foreach (var slot in slots)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
 
-            if (fragment is null)
-                return;
+            if (detections.Any(item =>
+                    item.Area.Equals("PULSE_COUNTER", StringComparison.OrdinalIgnoreCase) &&
+                    item.ProductName.Equals(slot.ProductName, StringComparison.OrdinalIgnoreCase)))
+                continue;
 
-            var targetY = (int)Math.Round(fragment.CenterY - verticalOffset);
+            var centerX = counterRegion.X + counterRegion.Width * slot.CenterFraction;
+            var roiWidth = Math.Clamp((int)Math.Round(counterRegion.Width * 0.13d), 64, 96);
+            var roiHeight = Math.Clamp((int)Math.Round(counterRegion.Height * 0.72d), 110, 210);
+            var roiTop = counterRegion.Y + (int)Math.Round(counterRegion.Height * 0.20d);
+            var roi = ClampedRegion(
+                frame,
+                (int)Math.Round(centerX - roiWidth / 2d),
+                roiTop,
+                roiWidth,
+                roiHeight);
+
+            var read = await ReadExpectedLabelAsync(
+                frame, roi, slot.ProductName, 4, cancellationToken);
+
+            if (!read.Matched && !read.HasWeakExpectedDigit)
+                continue;
+
+            var targetX = Math.Clamp((int)Math.Round(centerX), 0, frame.Width - 1);
+            // The product artwork is above its small black caption. This
+            // target is the centre of the voucher artwork, not the OCR text.
+            var targetY = Math.Clamp(
+                (int)Math.Round(counterRegion.Y + counterRegion.Height * 0.40d),
+                0,
+                frame.Height - 1);
+
+            var confidence = read.Matched
+                ? Math.Min(read.Confidence, 0.94d)
+                : 0.68d;
+
             candidates.Add(new ShelfItemDetection(
-                productName,
-                (int)Math.Round(expectedX),
-                Math.Clamp(targetY, 0, frameHeight - 1),
+                slot.ProductName,
+                targetX,
+                targetY,
                 "PULSE_COUNTER",
-                $"{fragment.Caption.Raw} [slot-inferred; verify marker]",
+                $"{read.Raw} [slot-ROI; {(read.Matched ? "OCR matched" : "weak digit candidate")}; verify marker]",
                 confidence));
         }
+
+        return candidates;
     }
+
+    private async Task<ExpectedLabelRead> ReadExpectedLabelAsync(
+        CapturedFrame frame,
+        PixelRegion region,
+        string expectedName,
+        int scale,
+        CancellationToken cancellationToken)
+    {
+        var cropped = Crop(frame, region);
+        var scaled = Upscale(cropped, scale);
+        var buffer = CryptographicBuffer.CreateFromByteArray(scaled.BgraPixels);
+        using var bitmap = SoftwareBitmap.CreateCopyFromBuffer(
+            buffer,
+            BitmapPixelFormat.Bgra8,
+            scaled.Width,
+            scaled.Height,
+            BitmapAlphaMode.Ignore);
+
+        cancellationToken.ThrowIfCancellationRequested();
+        var recognized = await _engine!.RecognizeAsync(bitmap);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var lineTexts = recognized.Lines
+            .Select(line => line.Text.Trim())
+            .Where(text => !string.IsNullOrWhiteSpace(text))
+            .ToArray();
+
+        var raw = lineTexts.Length > 0
+            ? string.Join(" | ", lineTexts)
+            : string.Join(" ", recognized.Lines
+                .SelectMany(line => line.Words)
+                .Select(word => word.Text));
+
+        foreach (var line in recognized.Lines)
+        {
+            var words = line.Words
+                .Select(word => word.Text.Trim())
+                .Where(text => !string.IsNullOrWhiteSpace(text))
+                .ToArray();
+
+            // Test short adjacent token windows so "2" + "GB" and "5" + "GB"
+            // can match even when Windows OCR splits the caption.
+            for (var start = 0; start < words.Length; start++)
+            {
+                for (var length = 1; length <= Math.Min(3, words.Length - start); length++)
+                {
+                    var candidateText = string.Join(" ", words.Skip(start).Take(length));
+                    var match = ProductLabelMatcher.Match(candidateText);
+                    if (match.Name is not null &&
+                        match.Name.Equals(expectedName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return new ExpectedLabelRead(
+                            true, false, candidateText, match.Confidence);
+                    }
+                }
+            }
+
+            var lineMatch = ProductLabelMatcher.Match(line.Text);
+            if (lineMatch.Name is not null &&
+                lineMatch.Name.Equals(expectedName, StringComparison.OrdinalIgnoreCase))
+            {
+                return new ExpectedLabelRead(true, false, line.Text.Trim(), lineMatch.Confidence);
+            }
+        }
+
+        var normalizedTokens = recognized.Lines
+            .SelectMany(line => line.Words)
+            .Select(word => new string(word.Text
+                .Where(char.IsLetterOrDigit)
+                .ToArray()).ToLowerInvariant())
+            .Where(token => token.Length > 0)
+            .ToArray();
+
+        var weakDigit = expectedName switch
+        {
+            "2 GB" => normalizedTokens.Any(token => token is "2" or "z"),
+            "5 GB" => normalizedTokens.Any(token => token is "5" or "s"),
+            _ => false
+        };
+
+        return new ExpectedLabelRead(false, weakDigit, raw, 0d);
+    }
+
+    private static PixelRegion PercentageRegion(
+        CapturedFrame frame,
+        double xPercent,
+        double yPercent,
+        double widthPercent,
+        double heightPercent)
+    {
+        return ClampedRegion(
+            frame,
+            (int)Math.Round(frame.Width * xPercent),
+            (int)Math.Round(frame.Height * yPercent),
+            (int)Math.Round(frame.Width * widthPercent),
+            (int)Math.Round(frame.Height * heightPercent));
+    }
+
+    private static PixelRegion ClampedRegion(
+        CapturedFrame frame,
+        int x,
+        int y,
+        int width,
+        int height)
+    {
+        x = Math.Clamp(x, 0, Math.Max(0, frame.Width - 1));
+        y = Math.Clamp(y, 0, Math.Max(0, frame.Height - 1));
+        var right = Math.Clamp(x + Math.Max(1, width), x + 1, frame.Width);
+        var bottom = Math.Clamp(y + Math.Max(1, height), y + 1, frame.Height);
+        return new PixelRegion(x, y, right - x, bottom - y);
+    }
+
+    private sealed record CounterSlot(string ProductName, double CenterFraction);
+
+    private sealed record ExpectedLabelRead(
+        bool Matched,
+        bool HasWeakExpectedDigit,
+        string Raw,
+        double Confidence);
 
     private sealed record UnmatchedCaption(
         string Raw,

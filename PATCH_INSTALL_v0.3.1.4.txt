@@ -1,0 +1,22 @@
+WABA Desktop v0.3.1.4 — Patch installation
+
+1. Back up your current WABA-Desktop repository.
+2. Extract this ZIP.
+3. Copy the contents of WABA-Desktop-main into the root of your GitHub repository.
+4. Allow the files to overwrite the older versions.
+5. Review the changed files, then commit and push:
+
+   git add .
+   git commit -m "WABA v0.3.1.4 targeted ROI OCR fallback"
+   git push origin main
+
+6. Open GitHub Actions and wait for the Windows x64 publish workflow.
+7. Download the artifact named:
+   WABA-Desktop-v0.3.1.4-Phase3.1.4-win-x64
+
+Important:
+- This update is detection/preview only. It does not send automatic clicks.
+- The Gula, 2 GB and 5 GB markers remain provisional and must be visually checked.
+- Phase 2 order OCR is not modified.
+- The extra OCR crops run only when one of those catalogue products is missing.
+- Local dotnet publish was not run in the preparation environment because .NET SDK is unavailable.
