@@ -1,8 +1,10 @@
 using System.Collections.ObjectModel;
 using System.Threading;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using System.Windows.Shapes;
 using System.Windows.Threading;
 using WABA.Domain.Models;
 using WABA.Infrastructure.Windows;
@@ -17,12 +19,14 @@ public partial class MainWindow : Window
     private readonly DesktopCaptureService _captureService = new();
     private readonly MouseInputService _mouseInputService = new();
     private readonly OrderPanelScanner _orderPanelScanner = new();
+    private readonly ShelfItemDetector _shelfItemDetector = new();
     private readonly OrderPanelChangeDetector _orderChangeDetector = new();
     private readonly ObservableCollection<GameWindowInfo> _windows = new();
     private readonly ObservableCollection<string> _logs = new();
     private readonly DispatcherTimer _previewTimer;
 
     private CapturedFrame? _lastFrame;
+    private IReadOnlyList<ShelfItemDetection> _lastShelfDetections = Array.Empty<ShelfItemDetection>();
     private bool _livePreviewRunning;
     private bool _autoOrderScanEnabled;
     private int _frameCount;
@@ -45,7 +49,8 @@ public partial class MainWindow : Window
 
         RefreshWindows();
         OrderEngineText.Text = _orderPanelScanner.EngineDescription;
-        AddLog("WABA Desktop Phase 2 siap.");
+        ShelfDetectionEngineText.Text = _shelfItemDetector.EngineDescription;
+        AddLog("WABA Desktop Phase 3.1 siap • deteksi rak hanya untuk verifikasi.");
         AddLog("Capture berjalan terpisah dari proses OCR.");
         AddLog("OCR memakai Windows OCR dan bahasa yang tersedia di perangkat.");
     }
@@ -86,6 +91,9 @@ public partial class MainWindow : Window
         }
 
         _lastFrame = null;
+        _lastShelfDetections = Array.Empty<ShelfItemDetection>();
+        DetectionOverlayCanvas.Children.Clear();
+        ShelfDetectionOutputText.Text = "Belum ada deteksi lokasi barang.";
         _orderChangeDetector.Reset();
 
         TargetDetailsText.Text =
@@ -160,6 +168,7 @@ public partial class MainWindow : Window
             var bitmap = ToBitmapSource(frame);
             PreviewImage.Source = bitmap;
             PreviewPlaceholderText.Visibility = Visibility.Collapsed;
+            RenderShelfDetectionOverlay();
 
             _frameCount++;
             CaptureInfoText.Text =
@@ -273,6 +282,101 @@ public partial class MainWindow : Window
             Interlocked.Exchange(ref _scanBusy, 0);
         }
     }
+
+    private async void DetectShelfItems_Click(object sender, RoutedEventArgs e)
+    {
+        var frame = _lastFrame;
+        if (frame is null)
+        {
+            await CaptureSelectedWindowAsync(isLive: false);
+            frame = _lastFrame;
+        }
+        if (frame is null)
+            return;
+
+        DetectShelfItemsButton.IsEnabled = false;
+        ShelfDetectionStatusText.Text = "Memindai label pada rak kiri, rak kanan, dan konter pulsa...";
+        try
+        {
+            var result = await _shelfItemDetector.DetectAsync(frame);
+            _lastShelfDetections = result.Items;
+            RenderShelfDetectionOverlay();
+
+            var lines = result.Items.Select((item, index) =>
+                $"{index + 1}. {item.ProductName} | X={item.ClientX}, Y={item.ClientY} | {item.Area} | cocok {item.Confidence:P0}");
+            ShelfDetectionOutputText.Text = result.Items.Count == 0
+                ? "Belum ada label produk yang cocok. Pastikan rak terlihat jelas dan tidak tertutup."
+                : string.Join(Environment.NewLine, lines);
+
+            ShelfDetectionStatusText.Text = result.Items.Count > 0
+                ? $"Selesai • {result.Items.Count} kandidat lokasi ditemukan dalam {result.Duration.TotalMilliseconds:0} ms. Periksa titik pada preview; belum ada klik yang dikirim."
+                : $"Tidak ada kandidat lokasi • {result.Duration.TotalMilliseconds:0} ms.";
+            AddLog($"Deteksi rak: {result.Items.Count} kandidat, {result.Duration.TotalMilliseconds:0} ms.");
+            AddLog(result.Diagnostics);
+            FooterStatusText.Text = "Deteksi lokasi selesai. Koordinat hanya perkiraan dan belum digunakan untuk input.";
+        }
+        catch (Exception ex)
+        {
+            ShelfDetectionStatusText.Text = $"Deteksi rak gagal: {ex.Message}";
+            AddLog($"Deteksi rak gagal: {ex.Message}");
+        }
+        finally
+        {
+            DetectShelfItemsButton.IsEnabled = true;
+        }
+    }
+
+    private void RenderShelfDetectionOverlay()
+    {
+        DetectionOverlayCanvas.Children.Clear();
+        if (_lastFrame is null || DetectionOverlayCanvas.ActualWidth <= 0 || DetectionOverlayCanvas.ActualHeight <= 0)
+            return;
+
+        var canvasWidth = DetectionOverlayCanvas.ActualWidth;
+        var canvasHeight = DetectionOverlayCanvas.ActualHeight;
+        var imageAspect = (double)_lastFrame.Width / _lastFrame.Height;
+        var canvasAspect = canvasWidth / canvasHeight;
+        var renderedWidth = canvasAspect > imageAspect ? canvasHeight * imageAspect : canvasWidth;
+        var renderedHeight = canvasAspect > imageAspect ? canvasHeight : canvasWidth / imageAspect;
+        var offsetX = (canvasWidth - renderedWidth) / 2d;
+        var offsetY = (canvasHeight - renderedHeight) / 2d;
+        var scaleX = renderedWidth / _lastFrame.Width;
+        var scaleY = renderedHeight / _lastFrame.Height;
+
+        foreach (var item in _lastShelfDetections)
+        {
+            var x = offsetX + item.ClientX * scaleX;
+            var y = offsetY + item.ClientY * scaleY;
+            var marker = new Ellipse
+            {
+                Width = 18,
+                Height = 18,
+                Stroke = Brushes.LawnGreen,
+                StrokeThickness = 3,
+                Fill = new SolidColorBrush(Color.FromArgb(55, 50, 255, 80)),
+                ToolTip = $"{item.ProductName} • ({item.ClientX}, {item.ClientY}) • {item.Area}"
+            };
+            Canvas.SetLeft(marker, x - marker.Width / 2d);
+            Canvas.SetTop(marker, y - marker.Height / 2d);
+            DetectionOverlayCanvas.Children.Add(marker);
+
+            var label = new TextBlock
+            {
+                Text = item.ProductName,
+                Foreground = Brushes.White,
+                Background = new SolidColorBrush(Color.FromArgb(210, 12, 24, 35)),
+                FontSize = 10,
+                Padding = new Thickness(3, 1, 3, 1),
+                IsHitTestVisible = false
+            };
+            Canvas.SetLeft(label, Math.Clamp(x + 9, 0, Math.Max(0, canvasWidth - 130)));
+            Canvas.SetTop(label, Math.Clamp(y - 12, 0, Math.Max(0, canvasHeight - 22)));
+            DetectionOverlayCanvas.Children.Add(label);
+        }
+    }
+
+    private void DetectionOverlayCanvas_SizeChanged(object sender, SizeChangedEventArgs e)
+        => RenderShelfDetectionOverlay();
 
     private OrderPanelRegion ReadOrderPanelRegion()
     {

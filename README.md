@@ -1,4 +1,4 @@
-# Warung Auto Bag Assistant PC — v0.2.1 (Phase 2.1)
+# Warung Auto Bag Assistant PC — v0.3.0 (Phase 3.1 Smart Item Detection)
 
 Windows desktop companion prototype for Warung Life Simulator running in Google Play Games on PC.
 
@@ -175,3 +175,17 @@ OCR noise does not prevent a product-name match. Quantities that cannot be read 
 unknown (`? / ?`); the parser does not invent a quantity.
 
 This is still a recognition-only update. It does not send game clicks or execute orders.
+
+
+## Phase 2.2 — Long order-panel ROI
+
+The default order-panel ROI height is now 45% (previously 20%). The shorter ROI could crop away lower rows when the game displayed a long order list, so OCR could only recognize the rows that remained inside the crop.
+
+Recommended starting values: X=40, Y=17, W=23, H=45. Verify the crop preview includes the complete yellow order note, including its bottom row. If the bottom row remains clipped, increase H gradually (for example, to 48 or 50) while keeping unrelated shelf text out of the crop.
+
+This change only adjusts the default scan region and documentation. It does not change live capture, OCR language selection, or mouse input behavior.
+
+
+## Phase 3.1 — Smart Item Detection
+
+Phase 3.1 adds Windows OCR label detection for the left shelf, right shelf, and pulse counter. OCR captions are clustered by both vertical alignment and horizontal gaps so multiple products on the same shelf row can be detected independently. It displays estimated product points and confidence for manual verification only. It does not send clicks or execute orders. See `docs/PHASE3_1_SMART_ITEM_DETECTION.md`.

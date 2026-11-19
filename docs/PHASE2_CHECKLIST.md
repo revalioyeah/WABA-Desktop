@@ -9,9 +9,9 @@
 ## B. ROI calibration
 - [ ] Launch Warung Life Simulator and enter the shop.
 - [ ] Select the game window and capture a frame.
-- [ ] Start with X=40, Y=17, W=23, H=20 percent.
+- [ ] Start with X=40, Y=17, W=23, H=45 percent. For long order lists, H=45 is the default starting point; increase toward 50 only if the bottom row is still clipped.
 - [ ] Click `Scan panel pesanan`.
-- [ ] Confirm the crop preview contains only the order note and rows.
+- [ ] Confirm the crop preview contains the entire order note from the header through the last visible item row. The crop preview, not the main game preview, is the source of truth for ROI coverage.
 - [ ] Adjust X/Y/W/H until the crop excludes shelves, characters, and subtitles.
 
 ## C. OCR and parsing

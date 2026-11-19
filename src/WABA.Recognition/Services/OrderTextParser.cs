@@ -29,6 +29,9 @@ public sealed class OrderTextParser
         "5 GB", "10 GB"
     ];
 
+    /// <summary>Canonical product names shared by order and shelf recognition.</summary>
+    public static IReadOnlyList<string> KnownProductNames => ProductNames;
+
     private static readonly string[] NormalizedProducts =
         ProductNames
             .OrderByDescending(x => x.Length)
