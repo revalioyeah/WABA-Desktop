@@ -253,7 +253,8 @@ public partial class MainWindow : Window
 
             OrderScanOutputText.Text =
                 $"HASIL PARSING ({result.Items.Count} item)\n{parsedText}\n\n" +
-                $"TEKS OCR MENTAH\n{(string.IsNullOrWhiteSpace(result.RawText) ? "(tidak ada teks terbaca)" : result.RawText)}";
+                $"TEKS OCR MENTAH\n{(string.IsNullOrWhiteSpace(result.RawText) ? "(tidak ada teks terbaca)" : result.RawText)}\n\n" +
+                $"TOKEN OCR & POSISI\n{result.WordDiagnostics}";
 
             OrderScanStatusText.Text = result.Items.Count > 0
                 ? $"Selesai • {result.Items.Count} baris terdeteksi. Periksa hasil sebelum digunakan."

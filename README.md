@@ -1,4 +1,4 @@
-# Warung Auto Bag Assistant PC — Phase 2
+# Warung Auto Bag Assistant PC — v0.2.1 (Phase 2.1)
 
 Windows desktop companion prototype for Warung Life Simulator running in Google Play Games on PC.
 
@@ -21,14 +21,14 @@ Implemented:
 5. Manually test one left mouse click using client-relative coordinates.
 6. Activity log and basic target status.
 
-Not implemented yet:
-- OCR and product recognition.
+Outside the Phase 1 scope:
 - Automatic order queue.
 - Automatic item clicking.
 - Fishing and other minigames.
 - Automated tip-dialog handling.
 
 The manual click is deliberately confirmation-gated. Phase 1 does not run unattended automation.
+OCR and order-panel recognition are introduced separately in Phase 2 below.
 
 ## Capture implementation note
 
@@ -110,9 +110,11 @@ window enumeration, visible capture, and manual click test services.
 2. Crop the order board using a configurable percentage-based ROI.
 3. Upscale the crop 2x before recognition.
 4. Run Windows built-in OCR using a language pack available in the current Windows profile.
-5. Parse OCR lines against the local product dictionary.
-6. Keep unknown product names visible as unknown; they are not eligible for automatic input.
-7. Optional change monitoring samples only the configured order-board ROI and requests OCR
+5. Preserve each OCR word's bounding box and group words into visual rows.
+6. Pair product labels and quantities by their visual row, even when Windows OCR splits them into separate text lines.
+7. Parse OCR rows against the local product dictionary.
+8. Keep unknown product names visible as unknown; they are not eligible for automatic input.
+9. Optional change monitoring samples only the configured order-board ROI and requests OCR
    after a meaningful visual change. It does not run OCR on every preview frame.
 
 ### Initial ROI calibration
@@ -159,3 +161,17 @@ Runtime OCR APIs. The Domain project remains `net10.0`.
 dotnet restore .\WarungAutoBagAssistant.PC.sln
 dotnet build .\WarungAutoBagAssistant.PC.sln -c Release
 ```
+
+
+## Phase 2.1 — Quantity association fix
+
+The OCR adapter now retains Windows OCR word bounding boxes. The parser groups words
+into visual rows and reads the product name and quantity from the reconstructed row.
+This addresses cases where Windows OCR returns a product label and its `0/1` quantity
+as separate text lines even though they appear on the same row in the game panel.
+
+The parser also compares short token windows against the product catalog so surrounding
+OCR noise does not prevent a product-name match. Quantities that cannot be read remain
+unknown (`? / ?`); the parser does not invent a quantity.
+
+This is still a recognition-only update. It does not send game clicks or execute orders.

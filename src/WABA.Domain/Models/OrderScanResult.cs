@@ -6,4 +6,5 @@ public sealed record OrderScanResult(
     string OcrLanguage,
     TimeSpan Duration,
     PixelRegion Region,
-    CapturedFrame CroppedFrame);
+    CapturedFrame CroppedFrame,
+    string WordDiagnostics);

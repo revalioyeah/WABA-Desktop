@@ -65,20 +65,44 @@ public sealed class OrderPanelScanner
         var recognized = await _engine.RecognizeAsync(bitmap);
         cancellationToken.ThrowIfCancellationRequested();
 
+        // Keep both the readable OCR lines and each word's bounding box.
+        // Windows OCR may split a product label and its 0/1 quantity into
+        // separate text lines even though they occupy the same visual row.
         var lines = recognized.Lines
             .Select(line => line.Text.Trim())
             .Where(line => !string.IsNullOrWhiteSpace(line))
             .ToArray();
 
+        var words = recognized.Lines
+            .SelectMany(line => line.Words)
+            .Where(word => !string.IsNullOrWhiteSpace(word.Text))
+            .Select(word => new OcrWordFragment(
+                word.Text,
+                word.BoundingRect.X,
+                word.BoundingRect.Y,
+                word.BoundingRect.Width,
+                word.BoundingRect.Height))
+            .ToArray();
+
+        var parsedItems = words.Length > 0
+            ? _parser.ParseWords(words)
+            : _parser.Parse(lines);
+
+        var wordDiagnostics = words.Length == 0
+            ? "(Windows OCR tidak mengembalikan token kata.)"
+            : string.Join(Environment.NewLine, words.Select(word =>
+                $"{word.Text} @ X={word.X:0}, Y={word.Y:0}, W={word.Width:0}, H={word.Height:0}"));
+
         timer.Stop();
 
         return new OrderScanResult(
             string.Join(Environment.NewLine, lines),
-            _parser.Parse(lines),
+            parsedItems,
             _engine.RecognizerLanguage.LanguageTag,
             timer.Elapsed,
             pixelRegion,
-            cropped);
+            cropped,
+            wordDiagnostics);
     }
 
     private static CapturedFrame Crop(CapturedFrame source, PixelRegion region)

@@ -35,3 +35,11 @@
 - [ ] Confirm unknown product labels remain marked as unknown.
 - [ ] Do not proceed to automatic execution until order recognition has been validated
       across multiple order types and quantities.
+
+
+## F. Phase 2.1 quantity association regression
+- [ ] Product names and quantities are paired by OCR word bounding boxes.
+- [ ] Test a row where Windows OCR splits the label and quantity into separate lines.
+- [ ] Verify 0/1, 0/2, and partially completed quantities.
+- [ ] Verify adjacent rows never exchange quantities.
+- [ ] Verify unreadable quantities remain unknown rather than being guessed.
