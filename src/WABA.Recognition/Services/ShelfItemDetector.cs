@@ -41,7 +41,7 @@ public sealed class ShelfItemDetector
 
     public string EngineDescription => _engine is null
         ? "Windows OCR tidak tersedia untuk deteksi rak."
-        : $"Shelf OCR • {_engine.RecognizerLanguage.LanguageTag} • katalog & pulse OCR v0.3.1.2";
+        : $"Shelf OCR • {_engine.RecognizerLanguage.LanguageTag} • katalog & pulse OCR v0.3.1.3";
 
     public async Task<ShelfDetectionResult> DetectAsync(
         CapturedFrame frame,
@@ -87,6 +87,7 @@ public sealed class ShelfItemDetector
 
             var rows = BuildCaptionClusters(words, frame.Width, isPulseCounter);
             var unmatchedLabels = new List<string>();
+            var unmatchedCaptions = new List<UnmatchedCaption>();
             var matchedInRegion = 0;
 
             foreach (var row in rows)
@@ -106,6 +107,15 @@ public sealed class ShelfItemDetector
                 {
                     if (unmatchedLabels.Count < 20)
                         unmatchedLabels.Add(raw);
+                    if (isPulseCounter)
+                    {
+                        unmatchedCaptions.Add(new UnmatchedCaption(
+                            raw,
+                            orderedWords.Min(w => w.X),
+                            orderedWords.Max(w => w.X + w.Width),
+                            orderedWords.Min(w => w.Y),
+                            orderedWords.Max(w => w.Y + w.Height)));
+                    }
                     continue;
                 }
 
@@ -147,9 +157,34 @@ public sealed class ShelfItemDetector
                 }
             }
 
-            var unmatched = unmatchedLabels.Count == 0
-                ? "tidak ada"
-                : string.Join(" | ", unmatchedLabels);
+            // A lone OCR digit can be the complete reading of the tiny "2 GB"
+            // counter caption. Infer that product only when the digit is inside
+            // the geometrically expected slot between already-recognized
+            // E-Wallet and 10 GB anchors. The resulting confidence is deliberately
+            // low and the UI renders it as a non-green candidate for validation.
+            var spatialFallbackNotes = new List<string>();
+            if (isPulseCounter)
+            {
+                var inferred = TryAddSpatiallyAnchoredDataPackages(
+                    detections, unmatchedCaptions, frame.Height);
+                foreach (var candidate in inferred)
+                {
+                    detections.Add(candidate);
+                    spatialFallbackNotes.Add(
+                        $"{candidate.ProductName} kandidat slot X={candidate.ClientX}, Y={candidate.ClientY} " +
+                        $"(skor {candidate.Confidence:P0}; wajib verifikasi visual)");
+                }
+                matchedInRegion = detections.Count(item => item.Area == regionDefinition.Name);
+            }
+
+            var unmatched = unmatchedCaptions.Count > 0 && isPulseCounter
+                ? string.Join(" | ", unmatchedCaptions.Select(caption =>
+                    $"{caption.Raw}@X={(caption.Left + caption.Right) / 2d:0},Y={(caption.Top + caption.Bottom) / 2d:0}"))
+                : unmatchedLabels.Count == 0
+                    ? "tidak ada"
+                    : string.Join(" | ", unmatchedLabels);
+            if (spatialFallbackNotes.Count > 0)
+                unmatched += " | kandidat berbasis posisi: " + string.Join("; ", spatialFallbackNotes);
             var expectedProducts = ExpectedProductsByArea[regionDefinition.Name];
             var foundProducts = detections
                 .Where(item => item.Area == regionDefinition.Name)
@@ -262,6 +297,84 @@ public sealed class ShelfItemDetector
 
         return clusters;
     }
+
+    private static IReadOnlyList<ShelfItemDetection> TryAddSpatiallyAnchoredDataPackages(
+        List<ShelfItemDetection> detections,
+        IReadOnlyList<UnmatchedCaption> unmatchedCaptions,
+        int frameHeight)
+    {
+        var wallet = detections.FirstOrDefault(item =>
+            item.Area == "PULSE_COUNTER" && item.ProductName == "E-Wallet");
+        var tenGb = detections.FirstOrDefault(item =>
+            item.Area == "PULSE_COUNTER" && item.ProductName == "10 GB");
+        var token = detections.FirstOrDefault(item =>
+            item.Area == "PULSE_COUNTER" && item.ProductName == "Token listrik");
+
+        // Three detected anchors establish the five-card counter spacing:
+        // E-Wallet, [2 GB], [5 GB], 10 GB, Token listrik.
+        // Missing packages are only proposed when an OCR fragment is present
+        // near the corresponding geometric slot; no coordinate is fabricated
+        // from the catalogue alone.
+        if (wallet is null || tenGb is null || token is null)
+            return [];
+
+        var spacingFromWalletToTen = (tenGb.ClientX - wallet.ClientX) / 3d;
+        var spacingFromTenToToken = token.ClientX - tenGb.ClientX;
+        if (spacingFromWalletToTen is < 65d or > 145d ||
+            spacingFromTenToToken is < 65d or > 145d ||
+            Math.Abs(spacingFromWalletToTen - spacingFromTenToToken) > 24d)
+            return [];
+
+        var spacing = (spacingFromWalletToTen + spacingFromTenToToken) / 2d;
+        var expectedY = (wallet.ClientY + tenGb.ClientY + token.ClientY) / 3d;
+        var maxXDistance = Math.Clamp(spacing * 0.42d, 28d, 48d);
+        var verticalOffset = Math.Clamp(frameHeight * 0.027d, 12d, 42d);
+        var candidates = new List<ShelfItemDetection>();
+
+        TryCreateCandidate("2 GB", wallet.ClientX + spacing, ["2", "z"], 0.68d);
+        TryCreateCandidate("5 GB", wallet.ClientX + spacing * 2d, ["50b", "5ob", "s0b", "5g", "sgb"], 0.72d);
+        return candidates;
+
+        void TryCreateCandidate(string productName, double expectedX, string[] acceptedFragments, double confidence)
+        {
+            if (detections.Any(item => item.Area == "PULSE_COUNTER" &&
+                                       item.ProductName.Equals(productName, StringComparison.OrdinalIgnoreCase)))
+                return;
+
+            var fragment = unmatchedCaptions
+                .Select(caption => new
+                {
+                    Caption = caption,
+                    Compact = new string(caption.Raw.Where(char.IsLetterOrDigit).ToArray()).ToLowerInvariant(),
+                    CenterX = (caption.Left + caption.Right) / 2d,
+                    CenterY = (caption.Top + caption.Bottom) / 2d
+                })
+                .Where(item => acceptedFragments.Contains(item.Compact, StringComparer.OrdinalIgnoreCase))
+                .Where(item => Math.Abs(item.CenterX - expectedX) <= maxXDistance)
+                .Where(item => Math.Abs((item.CenterY - verticalOffset) - expectedY) <= 42d)
+                .OrderBy(item => Math.Abs(item.CenterX - expectedX))
+                .FirstOrDefault();
+
+            if (fragment is null)
+                return;
+
+            var targetY = (int)Math.Round(fragment.CenterY - verticalOffset);
+            candidates.Add(new ShelfItemDetection(
+                productName,
+                (int)Math.Round(expectedX),
+                Math.Clamp(targetY, 0, frameHeight - 1),
+                "PULSE_COUNTER",
+                $"{fragment.Caption.Raw} [slot-inferred; verify marker]",
+                confidence));
+        }
+    }
+
+    private sealed record UnmatchedCaption(
+        string Raw,
+        double Left,
+        double Right,
+        double Top,
+        double Bottom);
 
     private static CapturedFrame Crop(CapturedFrame source, PixelRegion region)
     {

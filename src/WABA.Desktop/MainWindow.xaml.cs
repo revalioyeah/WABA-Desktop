@@ -50,7 +50,7 @@ public partial class MainWindow : Window
         RefreshWindows();
         OrderEngineText.Text = _orderPanelScanner.EngineDescription;
         ShelfDetectionEngineText.Text = _shelfItemDetector.EngineDescription;
-        AddLog("WABA Desktop v0.3.1.2 siap • deteksi rak dan validasi koordinat.");
+        AddLog("WABA Desktop v0.3.1.3 siap • deteksi rak dan validasi koordinat.");
         AddLog("Capture berjalan terpisah dari proses OCR.");
         AddLog("OCR memakai Windows OCR dan bahasa yang tersedia di perangkat.");
     }
@@ -350,14 +350,19 @@ public partial class MainWindow : Window
         {
             var x = offsetX + item.ClientX * scaleX;
             var y = offsetY + item.ClientY * scaleY;
+            var markerColor = item.Confidence >= 0.95d
+                ? Colors.LawnGreen
+                : item.Confidence >= 0.80d
+                    ? Colors.Orange
+                    : Colors.OrangeRed;
             var marker = new Ellipse
             {
                 Width = 18,
                 Height = 18,
-                Stroke = Brushes.LawnGreen,
+                Stroke = new SolidColorBrush(markerColor),
                 StrokeThickness = 3,
-                Fill = new SolidColorBrush(Color.FromArgb(55, 50, 255, 80)),
-                ToolTip = $"{item.ProductName} • ({item.ClientX}, {item.ClientY}) • {item.Area}"
+                Fill = new SolidColorBrush(Color.FromArgb(55, markerColor.R, markerColor.G, markerColor.B)),
+                ToolTip = $"{item.ProductName} • ({item.ClientX}, {item.ClientY}) • {item.Area} • skor teks {item.Confidence:P0} • koordinat belum divalidasi"
             };
             Canvas.SetLeft(marker, x - marker.Width / 2d);
             Canvas.SetTop(marker, y - marker.Height / 2d);

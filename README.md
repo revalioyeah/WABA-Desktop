@@ -1,4 +1,4 @@
-# Warung Auto Bag Assistant PC — v0.3.1.2 (Phase 3.1.2 Counter OCR & Catalog Diagnostics)
+# Warung Auto Bag Assistant PC — v0.3.1.3 (Phase 3.1.3 Spatial Counter OCR Fallback)
 
 Windows desktop companion prototype for Warung Life Simulator running in Google Play Games on PC.
 
@@ -205,3 +205,12 @@ Target X now uses the full caption bounds, including numeric tokens, so labels s
 This update targets the latest 33-product scan where the expected 37-product layout was missing `Gula`, `E-Wallet`, `2 GB`, and `5 GB`. It adds explicit aliases for the observed `E-WaUet` OCR fragment, counter-specific `2/Z` and `5/S` aliases, 4x OCR scaling only for the small pulse-counter crop, and wider token grouping only in that region. It also reports expected catalogue entries that were not found, without inventing their coordinates. The two main shelf crops remain at 2x. The latest user-reported coordinate observations are recorded in `docs/PHASE3_1_1_COORDINATE_BASELINE.csv`; those are text-match observations, not click-validated ground truth.
 
 `Tisu` remains in the order vocabulary but is not in the 37-item coordinate baseline because no current coordinate was supplied. Calibrate it separately if it is visible in the current game layout. This phase remains preview-only and does not send mouse input. See `docs/PHASE3_1_2_COUNTER_OCR_AND_CATALOG_DIAGNOSTICS.md`.
+
+
+## Phase 3.1.3 — Spatial Counter OCR Fallback
+
+This update uses the latest user-reported counter anchors (`E-Wallet`, `10 GB`, and `Token listrik`) to estimate the spacing of the five counter-card slots. It only proposes `2 GB` or `5 GB` when a corresponding raw OCR fragment is found close to the expected slot. These candidates receive deliberately lower confidence values and are shown with non-green markers; they are not click-ready. Unmatched counter fragments now include their approximate OCR center coordinates in diagnostics. `50B`/`5OB`-like fragments are considered for `5 GB` only when they occur at the expected 5 GB slot.
+
+`Gula` remains unresolved because the latest OCR diagnostics contain no recognizable text fragment for that label. No coordinate is synthesized for it. Capture a close-up of the left-shelf third row (LPG 3 kg and the adjacent sugar product) if it remains missing.
+
+This phase remains preview-only. It does not send mouse input. The 34 user-reported product coordinates are text/position observations and have not been validated by actual clicks.

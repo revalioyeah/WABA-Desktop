@@ -35,3 +35,12 @@ The counter diagnostics included the raw OCR fragment `E-WaUet`, which indicates
 ## Safety boundary
 
 This remains preview-only detection. No mouse clicks or order execution are added.
+
+
+## Follow-up run: v0.3.1.3 findings
+
+The next user run detected 34 products: 15 left-shelf, 16 right-shelf, and 3 pulse-counter products. `E-Wallet` is now recognized at X=268, Y=910. `2 GB` and `5 GB` remain missing; unmatched fragments include `2`, `50B`, `106B`, `11`, and `ld-ooo`. `Gula` remains missing on the left shelf.
+
+The v0.3.1.3 follow-up adds a spatially constrained fallback for the two missing data packages. It derives the expected card spacing only from the already-detected E-Wallet, 10 GB, and Token listrik anchors. It requires an OCR fragment (`2`/`Z` near the 2 GB slot, or `50B`-like near the 5 GB slot) before creating a provisional candidate. These candidates have low confidence and must be visually checked; they are not execution targets. Unmatched pulse fragments are reported with approximate OCR center coordinates to support further diagnosis.
+
+No coordinate is generated for Gula because no label fragment was observed. A close-up capture of the third left-shelf row is required to diagnose whether the label is obscured, cropped, or unreadable.

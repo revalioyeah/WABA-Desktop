@@ -14,7 +14,7 @@ internal static class ProductLabelMatcher
     private static readonly IReadOnlyDictionary<string, string[]> Aliases =
         new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
         {
-            ["Gula"] = ["gu1a", "guia", "gu la", "gu|a", "gu1a."],
+            ["Gula"] = ["gu1a", "guia", "gu la", "gu|a", "gu1a.", "gua"],
             ["Galon"] = ["ga1on", "gaion", "gal0n"],
             ["Teh celup"] = ["tehce1up", "teh cel up", "tehcelup"],
             ["Teh botol"] = ["teh botoi", "tehbotol"],
