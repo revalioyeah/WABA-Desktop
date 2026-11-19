@@ -1,4 +1,4 @@
-# Warung Auto Bag Assistant PC — v0.3.1.1 (Phase 3.1.1 Product Matching Fix)
+# Warung Auto Bag Assistant PC — v0.3.1.2 (Phase 3.1.2 Counter OCR & Catalog Diagnostics)
 
 Windows desktop companion prototype for Warung Life Simulator running in Google Play Games on PC.
 
@@ -198,3 +198,10 @@ This update preserves the Phase 2 order OCR and improves shelf-label matching fo
 Target X now uses the full caption bounds, including numeric tokens, so labels such as `2 GB` do not anchor only on `GB`. The scan regions were slightly extended to include lower shelf captions. Area diagnostics and unmatched OCR labels are now included in the detection output.
 
 **Safety boundary remains unchanged:** detections are preview-only estimates. This version does not send clicks or execute orders. Verify every marker before any future interaction phase.
+
+
+## Phase 3.1.2 — Counter OCR & Missing Catalogue Diagnostics
+
+This update targets the latest 33-product scan where the expected 37-product layout was missing `Gula`, `E-Wallet`, `2 GB`, and `5 GB`. It adds explicit aliases for the observed `E-WaUet` OCR fragment, counter-specific `2/Z` and `5/S` aliases, 4x OCR scaling only for the small pulse-counter crop, and wider token grouping only in that region. It also reports expected catalogue entries that were not found, without inventing their coordinates. The two main shelf crops remain at 2x. The latest user-reported coordinate observations are recorded in `docs/PHASE3_1_1_COORDINATE_BASELINE.csv`; those are text-match observations, not click-validated ground truth.
+
+`Tisu` remains in the order vocabulary but is not in the 37-item coordinate baseline because no current coordinate was supplied. Calibrate it separately if it is visible in the current game layout. This phase remains preview-only and does not send mouse input. See `docs/PHASE3_1_2_COUNTER_OCR_AND_CATALOG_DIAGNOSTICS.md`.

@@ -14,15 +14,21 @@ internal static class ProductLabelMatcher
     private static readonly IReadOnlyDictionary<string, string[]> Aliases =
         new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
         {
-            ["Gula"] = ["gu1a", "guia", "gu la"],
+            ["Gula"] = ["gu1a", "guia", "gu la", "gu|a", "gu1a."],
             ["Galon"] = ["ga1on", "gaion", "gal0n"],
             ["Teh celup"] = ["tehce1up", "teh cel up", "tehcelup"],
             ["Teh botol"] = ["teh botoi", "tehbotol"],
-            ["E-Wallet"] = ["ewallet", "e wallet", "e-wallet", "e waliet"],
-            ["2 GB"] = ["2gb", "2 gb"],
-            ["5 GB"] = ["5gb", "5 gb"],
-            ["10 GB"] = ["10gb", "10 gb"],
-            ["Token listrik"] = ["tokenlistrik", "token listrik"],
+            // Windows OCR often confuses the lowercase 'l' with 'u' in the
+            // compact counter caption E-Wallet. Keep these as explicit aliases
+            // instead of lowering the global fuzzy threshold.
+            ["E-Wallet"] = ["ewallet", "e wallet", "e-wallet", "e waliet", "e wauet", "ewauet", "e wal uet"],
+            // Counter cards can be read as a single token or split into number
+            // and unit fragments. Common 2/Z and 5/S glyph substitutions are
+            // scoped to these product labels only.
+            ["2 GB"] = ["2gb", "2 gb", "2g b", "zgb", "z gb"],
+            ["5 GB"] = ["5gb", "5 gb", "5g b", "sgb", "s gb"],
+            ["10 GB"] = ["10gb", "10 gb", "10g b", "i0gb", "iogb"],
+            ["Token listrik"] = ["tokenlistrik", "token listrik", "tokenlistr1k"],
             ["Mie rebus"] = ["mi rebus", "mi-rebus"],
             ["Mie goreng"] = ["mi goreng", "mi-goreng"],
             ["Air mineral"] = ["airmineral"],

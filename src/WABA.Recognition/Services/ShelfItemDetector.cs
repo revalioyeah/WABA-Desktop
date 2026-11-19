@@ -9,7 +9,7 @@ using WABA.Recognition.Models;
 namespace WABA.Recognition.Services;
 
 /// <summary>
-/// Phase 3.1.1 label-based shelf detector. It estimates product positions only;
+/// Phase 3.1.2 label-based shelf detector. It estimates product positions only;
 /// it never sends mouse input. All target coordinates require visual validation.
 /// </summary>
 public sealed class ShelfItemDetector
@@ -41,7 +41,7 @@ public sealed class ShelfItemDetector
 
     public string EngineDescription => _engine is null
         ? "Windows OCR tidak tersedia untuk deteksi rak."
-        : $"Shelf OCR • {_engine.RecognizerLanguage.LanguageTag} • katalog alias v0.3.1.1";
+        : $"Shelf OCR • {_engine.RecognizerLanguage.LanguageTag} • katalog & pulse OCR v0.3.1.2";
 
     public async Task<ShelfDetectionResult> DetectAsync(
         CapturedFrame frame,
@@ -59,11 +59,12 @@ public sealed class ShelfItemDetector
             cancellationToken.ThrowIfCancellationRequested();
             var region = regionDefinition.ToPixels(frame.Width, frame.Height);
             var crop = Crop(frame, region);
+            var isPulseCounter = regionDefinition.Name == "PULSE_COUNTER";
 
-            // The counter labels are smaller than shelf captions. Use 3x only
-            // for that region to improve 2GB/5GB/E-Wallet recall without making
-            // every OCR pass more expensive.
-            var scale = regionDefinition.Name == "PULSE_COUNTER" ? 3 : 2;
+            // Counter captions are materially smaller than shelf captions.
+            // Upscale only this small ROI to 4x; the larger shelf areas remain
+            // at 2x to keep the overall scan responsive.
+            var scale = isPulseCounter ? 4 : 2;
             var scaled = Upscale(crop, scale);
             var buffer = CryptographicBuffer.CreateFromByteArray(scaled.BgraPixels);
             using var bitmap = SoftwareBitmap.CreateCopyFromBuffer(
@@ -84,7 +85,7 @@ public sealed class ShelfItemDetector
                     word.BoundingRect.Height / (double)scale))
                 .ToArray();
 
-            var rows = BuildCaptionClusters(words, frame.Width);
+            var rows = BuildCaptionClusters(words, frame.Width, isPulseCounter);
             var unmatchedLabels = new List<string>();
             var matchedInRegion = 0;
 
@@ -149,9 +150,22 @@ public sealed class ShelfItemDetector
             var unmatched = unmatchedLabels.Count == 0
                 ? "tidak ada"
                 : string.Join(" | ", unmatchedLabels);
+            var expectedProducts = ExpectedProductsByArea[regionDefinition.Name];
+            var foundProducts = detections
+                .Where(item => item.Area == regionDefinition.Name)
+                .Select(item => item.ProductName)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var missingProducts = expectedProducts
+                .Where(name => !foundProducts.Contains(name))
+                .ToArray();
+            var missing = missingProducts.Length == 0
+                ? "tidak ada"
+                : string.Join(", ", missingProducts);
+
             diagnostics.Add(
                 $"{regionDefinition.Name}: skala {scale}x, {words.Length} token, " +
-                $"{rows.Count} klaster, {matchedInRegion} cocok. Label belum cocok: {unmatched}");
+                $"{rows.Count} klaster, {matchedInRegion} cocok. " +
+                $"Label belum cocok: {unmatched}. Katalog belum terdeteksi: {missing}");
         }
 
         timer.Stop();
@@ -165,9 +179,34 @@ public sealed class ShelfItemDetector
             string.Join(Environment.NewLine, diagnostics));
     }
 
-    private static List<ShelfRow> BuildCaptionClusters(IReadOnlyList<ShelfWord> words, int frameWidth)
+    private static readonly IReadOnlyDictionary<string, string[]> ExpectedProductsByArea =
+        new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["LEFT_SHELF"] =
+            [
+                "Mie rebus", "Telur", "Mie goreng", "Kopi sachet", "Beras", "Buku tulis",
+                "Makanan kucing", "Sayuran", "Obat", "Galon", "LPG 3 kg", "Gula",
+                "Minyak goreng", "Sabun mandi", "Teh celup", "Deterjen"
+            ],
+            ["RIGHT_SHELF"] =
+            [
+                "Ciki", "Permen", "Biskuit", "Air mineral", "Roti", "Jamu", "Teh botol",
+                "Kerupuk", "Minuman energi", "Soda", "Rengginang", "Kopi susu", "Susu kotak",
+                "Es krim", "Kurma", "Sirup"
+            ],
+            ["PULSE_COUNTER"] =
+            ["E-Wallet", "2 GB", "5 GB", "10 GB", "Token listrik"]
+        };
+
+    private static List<ShelfRow> BuildCaptionClusters(
+        IReadOnlyList<ShelfWord> words,
+        int frameWidth,
+        bool isPulseCounter)
     {
-        // Group tokens sharing a visual baseline first.
+        // Group tokens sharing a visual baseline first. The pulse counter has
+        // small two-part captions (for example '2' + 'GB'), so use a wider
+        // vertical tolerance only in that region.
+
         var verticalRows = new List<ShelfRow>();
         foreach (var word in words.OrderBy(w => w.CenterY).ThenBy(w => w.X))
         {
@@ -176,7 +215,9 @@ public sealed class ShelfItemDetector
             foreach (var row in verticalRows)
             {
                 var distance = Math.Abs(word.CenterY - row.CenterY);
-                var tolerance = Math.Clamp(Math.Min(word.Height, row.AverageHeight) * 0.85d, 4d, 14d);
+                var tolerance = isPulseCounter
+                    ? Math.Clamp(Math.Min(word.Height, row.AverageHeight) * 1.35d, 6d, 22d)
+                    : Math.Clamp(Math.Min(word.Height, row.AverageHeight) * 0.85d, 4d, 14d);
                 if (distance <= tolerance && distance < bestDistance)
                 {
                     best = row;
@@ -195,7 +236,9 @@ public sealed class ShelfItemDetector
         // Split adjacent products by horizontal gaps. A slightly wider gap
         // keeps OCR-separated caption tokens together while the product slots
         // themselves remain much farther apart in the current game layout.
-        var horizontalGap = Math.Clamp(frameWidth * 0.015d, 18d, 30d);
+        var horizontalGap = isPulseCounter
+            ? Math.Clamp(frameWidth * 0.026d, 34d, 52d)
+            : Math.Clamp(frameWidth * 0.015d, 18d, 30d);
         var clusters = new List<ShelfRow>();
         foreach (var visualRow in verticalRows.OrderBy(row => row.CenterY))
         {

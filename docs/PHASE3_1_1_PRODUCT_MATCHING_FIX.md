@@ -30,3 +30,6 @@ The UI now calls the matcher value a **text match score**, not coordinate accura
 ## Safety boundary
 
 This update remains detection/preview only. It does not send mouse input and does not automate order execution.
+
+
+See `PHASE3_1_2_COUNTER_OCR_AND_CATALOG_DIAGNOSTICS.md` for the follow-up fix based on the latest 33-item diagnostic run.
