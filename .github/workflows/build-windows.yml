@@ -19,15 +19,25 @@ jobs:
         with:
           dotnet-version: 10.0.x
 
-      - name: Restore
-        run: dotnet restore .\WarungAutoBagAssistant.PC.sln
+      - name: Restore Windows x64
+        run: dotnet restore .\WarungAutoBagAssistant.PC.sln -r win-x64
 
-      - name: Build Release
-        run: dotnet build .\WarungAutoBagAssistant.PC.sln -c Release --no-restore
+      - name: Publish Windows x64
+        run: dotnet publish .\src\WABA.Desktop\WABA.Desktop.csproj -c Release -r win-x64 --self-contained true --no-restore -o .\artifacts\publish
+
+      - name: Verify publish output
+        shell: pwsh
+        run: |
+          if (-not (Test-Path '.\artifacts\publish\WABA.Desktop.exe')) {
+            Write-Error 'WABA.Desktop.exe tidak ditemukan pada artifacts/publish.'
+            exit 1
+          }
+          Get-ChildItem '.\artifacts\publish' | Select-Object Name, Length
 
       - name: Upload application output
         uses: actions/upload-artifact@v4
         with:
-          name: WABA-Desktop-Phase1
-          path: src/WABA.Desktop/bin/Release/net10.0-windows/
+          name: WABA-Desktop-Phase2-win-x64
+          path: artifacts/publish/**
           if-no-files-found: error
+          compression-level: 6
