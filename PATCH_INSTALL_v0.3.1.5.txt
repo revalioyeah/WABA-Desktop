@@ -1,0 +1,16 @@
+WABA Desktop v0.3.1.5 — Patch installation
+
+1. Back up the current repository.
+2. Extract the patch ZIP.
+3. Copy the contents of WABA-Desktop-main into the repository root.
+4. Commit and push:
+
+   git add .
+   git commit -m "WABA v0.3.1.5 anchor-based shelf and counter fallback"
+   git push origin main
+
+Expected GitHub Actions artifact:
+WABA-Desktop-v0.3.1.5-Phase3.1.5-win-x64
+
+No mouse input or automated gesture was added. Verify all candidate markers
+in the preview before using any coordinates for actions.

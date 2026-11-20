@@ -266,7 +266,7 @@
             </Grid.ColumnDefinitions>
             <TextBlock x:Name="FooterStatusText" Text="Ready — pilih jendela game untuk memulai."
                        Foreground="{StaticResource MutedBrush}" FontSize="11" VerticalAlignment="Center"/>
-            <TextBlock Grid.Column="1" Text=".NET 10  •  WABA PC 0.3.1.4-phase3.1.4-targeted-roi"
+            <TextBlock Grid.Column="1" Text=".NET 10  •  WABA PC 0.3.1.5-phase3.1.5-anchor-calibration"
                        Foreground="{StaticResource MutedBrush}" FontSize="11" VerticalAlignment="Center"/>
         </Grid>
     </Grid>

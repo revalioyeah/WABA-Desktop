@@ -1,4 +1,4 @@
-# Warung Auto Bag Assistant PC — v0.3.1.4 (Phase 3.1.4 Targeted ROI OCR Fallback)
+# Warung Auto Bag Assistant PC — v0.3.1.5 (Phase 3.1.5 Anchor-Based Shelf & Counter Fallback)
 
 Windows desktop companion prototype for Warung Life Simulator running in Google Play Games on PC.
 
