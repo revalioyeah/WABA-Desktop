@@ -54,7 +54,8 @@ public partial class MainWindow : Window
         ShelfDetectionEngineText.Text = _shelfItemDetector.EngineDescription;
         CatalogStateText.Text = _stableCatalogManager.GetInitialStatus();
         UpdateCatalogControls();
-        AddLog("WABA Desktop v0.3.2 siap • Stable Catalog Engine dengan baseline 37 slot.");
+        AddLog("WABA Desktop v0.3.3 siap • Stable Catalog 37 slot dengan koreksi marker per area.");
+        AddLog("Offset marker: rak kanan X+24 px; konter pulsa Y+18 px pada frame referensi.");
         AddLog("Capture berjalan terpisah dari proses OCR.");
         AddLog("OCR memakai Windows OCR dan bahasa yang tersedia di perangkat.");
     }

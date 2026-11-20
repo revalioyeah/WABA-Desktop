@@ -1,4 +1,4 @@
-# Warung Auto Bag Assistant PC — v0.3.1.5 (Phase 3.1.5 Anchor-Based Shelf & Counter Fallback)
+# Warung Auto Bag Assistant PC — v0.3.3 (Phase 3.3 Area-Specific Marker Calibration)
 
 Windows desktop companion prototype for Warung Life Simulator running in Google Play Games on PC.
 
@@ -239,3 +239,22 @@ For the supplied 1767x992 reference screenshot, the targeted candidate positions
 - Catalogue recalibration is explicit and requires 2 of 3 consistent observations.
 - The shelf detector and order-panel OCR algorithms remain separate.
 - This version does not enable automatic item gestures. Coordinates still require visual validation.
+
+
+## Phase 3.3 — Area-Specific Marker Calibration
+
+This patch preserves the v0.3.2 stable 37-slot catalogue and applies two display/target
+offsets after reference coordinates are loaded and scaled:
+
+- `RIGHT_SHELF`: X +24 reference-frame pixels (all 16 right-shelf slots).
+- `PULSE_COUNTER`: Y +18 reference-frame pixels (all 5 counter slots).
+- `LEFT_SHELF`: unchanged.
+
+The offsets are applied in the 1831×1028 reference-frame coordinate space, then scaled
+to the actual captured client dimensions. They do not mutate the persisted baseline or
+OCR observations. This keeps the adjustment independent from catalogue persistence and
+the 2-of-3 recalibration consensus.
+
+The offsets are initial user-requested calibration values and still require visual
+verification in the live preview. Do not treat them as click-validated coordinates.
+No automatic item clicking or unattended execution is enabled by this patch.

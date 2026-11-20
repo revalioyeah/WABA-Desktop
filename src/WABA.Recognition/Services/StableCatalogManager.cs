@@ -15,6 +15,12 @@ public sealed class StableCatalogManager
     public const int ReferenceHeight = 1028;
     public const int ExpectedCatalogCount = 37;
 
+    // Presentation/input offsets are applied after loading or recalibrating the
+    // reference catalogue. Values are expressed in reference-frame pixels.
+    // LEFT_SHELF is deliberately unchanged.
+    public const int RightShelfOffsetXReference = 24;
+    public const int PulseCounterOffsetYReference = 18;
+
     private const int SchemaVersion = 1;
     private const int ObservationWindow = 3;
     private const double AspectRatioTolerance = 0.015d;
@@ -40,8 +46,12 @@ public sealed class StableCatalogManager
 
     public string GetInitialStatus()
         => _isLocked
-            ? $"KATALOG TERKUNCI • {_entries.Count}/{ExpectedCatalogCount} slot referensi tersedia. OCR hanya memperbarui status pengamatan."
-            : $"KALIBRASI TERBUKA • lakukan hingga 3 pemindaian; koordinat hanya diperbarui jika konsisten pada minimal 2 dari 3 scan.";
+            ? $"KATALOG TERKUNCI • {_entries.Count}/{ExpectedCatalogCount} slot referensi tersedia. " +
+              $"Koreksi marker aktif: RIGHT_SHELF X+{RightShelfOffsetXReference}px; " +
+              $"PULSE_COUNTER Y+{PulseCounterOffsetYReference}px. OCR hanya memperbarui status pengamatan."
+            : $"KALIBRASI TERBUKA • lakukan hingga 3 pemindaian; koordinat hanya diperbarui jika konsisten pada minimal 2 dari 3 scan. " +
+              $"Koreksi marker aktif: RIGHT_SHELF X+{RightShelfOffsetXReference}px; " +
+              $"PULSE_COUNTER Y+{PulseCounterOffsetYReference}px.";
 
     public StableCatalogSnapshot Merge(
         ShelfDetectionResult scan,
@@ -101,8 +111,22 @@ public sealed class StableCatalogManager
         var items = _entries
             .Select(entry =>
             {
-                var x = (int)Math.Round(entry.ReferenceX * (double)frameWidth / ReferenceWidth);
-                var y = (int)Math.Round(entry.ReferenceY * (double)frameHeight / ReferenceHeight);
+                // Apply area-specific calibration in reference-frame space so
+                // the correction scales consistently with the captured client
+                // dimensions. Do not mutate persisted catalogue coordinates:
+                // this keeps the user baseline and OCR recalibration independent
+                // from the display/target offsets.
+                var adjustedReferenceX = entry.ReferenceX +
+                    (entry.Area.Equals("RIGHT_SHELF", StringComparison.OrdinalIgnoreCase)
+                        ? RightShelfOffsetXReference
+                        : 0);
+                var adjustedReferenceY = entry.ReferenceY +
+                    (entry.Area.Equals("PULSE_COUNTER", StringComparison.OrdinalIgnoreCase)
+                        ? PulseCounterOffsetYReference
+                        : 0);
+
+                var x = (int)Math.Round(adjustedReferenceX * (double)frameWidth / ReferenceWidth);
+                var y = (int)Math.Round(adjustedReferenceY * (double)frameHeight / ReferenceHeight);
                 var seen = entry.SeenInLatestScan;
                 var confidence = seen ? entry.LastObservedConfidence : entry.BaselineConfidence;
                 var rawLabel = seen
@@ -197,11 +221,16 @@ public sealed class StableCatalogManager
 
     private string BuildStatus(int observedCount, bool layoutMatches, int frameWidth, int frameHeight)
     {
+        var offsetStatus =
+            $"Koreksi marker aktif (frame referensi {ReferenceWidth}×{ReferenceHeight}): " +
+            $"RIGHT_SHELF X+{RightShelfOffsetXReference}px; " +
+            $"PULSE_COUNTER Y+{PulseCounterOffsetYReference}px.";
+
         if (!layoutMatches)
         {
             return $"PERINGATAN LAYOUT • frame {frameWidth}×{frameHeight} memiliki rasio berbeda dari baseline " +
                    $"{ReferenceWidth}×{ReferenceHeight}. Katalog tetap dipertahankan dan koordinat hanya diskalakan untuk preview; " +
-                   "kalibrasi ulang posisi tidak diterapkan.";
+                   $"kalibrasi ulang posisi tidak diterapkan. {offsetStatus}";
         }
 
         var retained = _entries.Count - observedCount;
@@ -209,12 +238,12 @@ public sealed class StableCatalogManager
         {
             return $"KATALOG TERKUNCI • {_entries.Count}/{ExpectedCatalogCount} slot stabil. " +
                    $"Scan ini membaca {observedCount}; {retained} produk dipertahankan dari baseline. " +
-                   "Hasil OCR tidak menghapus produk atau mengubah koordinat.";
+                   $"Hasil OCR tidak menghapus produk atau mengubah koordinat. {offsetStatus}";
         }
 
         return $"KALIBRASI TERBUKA • scan ke-{_recalibrationScanCount}. " +
                $"{observedCount}/{_entries.Count} produk terlihat pada scan ini; " +
-               "koordinat diperbarui hanya setelah 2 dari 3 pengamatan konsisten.";
+               $"koordinat diperbarui hanya setelah 2 dari 3 pengamatan konsisten. {offsetStatus}";
     }
 
     private bool TrySavePersistedCatalog()

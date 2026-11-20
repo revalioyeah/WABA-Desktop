@@ -1,0 +1,26 @@
+WABA Desktop v0.3.3 patch installation
+
+1. Back up the current WABA-Desktop repository.
+2. Extract this ZIP.
+3. Copy the contents of WABA-Desktop-main into the repository root, preserving folders.
+4. Allow files to be overwritten.
+5. Commit and push to the main branch.
+6. Open GitHub Actions and wait for "Build WABA Desktop" to finish.
+7. Download artifact: WABA-Desktop-v0.3.3-win-x64.
+8. Extract the artifact and run WABA.Desktop.exe.
+
+Suggested commit:
+  git add .
+  git commit -m "WABA v0.3.3 calibrate shelf and counter markers"
+  git push origin main
+
+Calibration changes:
+- RIGHT_SHELF: shift all 16 markers right by 24 pixels in the 1831x1028 reference frame.
+- PULSE_COUNTER: shift all 5 markers down by 18 pixels in the 1831x1028 reference frame.
+- LEFT_SHELF: unchanged.
+
+Important:
+- Offsets are applied to preview/returned coordinates after the saved baseline is read.
+- Existing %LOCALAPPDATA%\WABA Desktop\stable-catalog.json files remain compatible.
+- The offsets are not yet click-validated. Check the preview markers before any manual click test.
+- No automatic item-click execution is enabled.
