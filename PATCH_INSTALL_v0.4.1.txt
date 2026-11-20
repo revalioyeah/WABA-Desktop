@@ -1,0 +1,30 @@
+WABA DESKTOP v0.4.1 — INSTALL / UPDATE
+
+1. Back up your current WABA-Desktop repository.
+2. Extract this ZIP.
+3. Copy the contents of WABA-Desktop-main into your local repository and replace the old files.
+4. Commit and push:
+
+   git add .
+   git commit -m "WABA v0.4.1 guided order queue UI"
+   git push origin main
+
+5. Open GitHub > Actions and wait for the Windows build to succeed.
+6. Download artifact: WABA-Desktop-v0.4.1-Guided-Queue-win-x64
+
+FIRST USE
+- Select Warung Life Simulator in section 01.
+- Start Live Preview in section 02.
+- In section 05, scan and inspect the 37 catalogue markers. If the catalogue is already locked, do not recalibrate; tick the marker confirmation checkbox. If it is in recalibration mode, complete three scans and then lock it.
+- Show the customer order in the game.
+- In section 06, press "Baca pesanan & buat rencana". WABA captures a fresh frame, reads the order panel, and prepares a plan.
+- Check every product and quantity. Do not execute if anything is wrong or unknown.
+- Press "Jalankan rencana" and approve the confirmation dialog only after checking the plan.
+- Verify the bag and order panel in the game.
+
+SAFETY
+- The queue sends real mouse clicks to the game.
+- Maximum 20 clicks per plan, 105 ms between clicks.
+- The plan expires after 20 seconds.
+- Tip dialogs, customer interruptions and minigames are not handled automatically.
+- Keep the game visible and supervised.

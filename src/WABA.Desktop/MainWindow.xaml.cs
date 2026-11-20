@@ -48,7 +48,7 @@ public partial class MainWindow : Window
     private CancellationTokenSource? _queueCancellation;
     private bool _queueRunning;
     private const int QueueClickIntervalMs = 105;
-    private static readonly TimeSpan MaximumOrderScanAge = TimeSpan.FromSeconds(8);
+    private static readonly TimeSpan MaximumOrderScanAge = TimeSpan.FromSeconds(20);
 
     public MainWindow()
     {
@@ -68,7 +68,7 @@ public partial class MainWindow : Window
         ShelfDetectionEngineText.Text = _shelfItemDetector.EngineDescription;
         CatalogStateText.Text = _stableCatalogManager.GetInitialStatus();
         UpdateCatalogControls();
-        AddLog("WABA Desktop v0.4.0 siap • Phase 4 Smart Order Queue dengan konfirmasi eksekusi.");
+        AddLog("WABA Desktop v0.4.1 siap • Guided Smart Order Queue dengan panduan langkah dan status yang lebih jelas.");
         AddLog("Baseline katalog: 37 slot; rak kanan X+24 px; konter pulsa Y+18 px.");
         AddLog("Capture berjalan terpisah dari proses OCR.");
         AddLog("OCR memakai Windows OCR dan bahasa yang tersedia di perangkat.");
@@ -118,7 +118,7 @@ public partial class MainWindow : Window
         _lastCatalogScanAtUtc = DateTimeOffset.MinValue;
         ConfirmCatalogCoordinatesCheckBox.IsChecked = false;
         ExecuteOrderQueueButton.IsEnabled = false;
-        OrderQueuePlanStatusText.Text = "Pilih game dan verifikasi katalog terlebih dahulu.";
+        OrderQueuePlanStatusText.Text = "Pilih game, siapkan katalog di bagian 05, lalu scan pesanan di bagian 04.";
         OrderQueuePlanOutputText.Text = "Belum ada rencana pesanan.";
         DetectionOverlayCanvas.Children.Clear();
         ShelfDetectionOutputText.Text = "Belum ada deteksi lokasi barang.";
@@ -275,7 +275,8 @@ public partial class MainWindow : Window
             _lastOrderScanFrameHeight = frame.Height;
             _currentOrderPlan = null;
             ExecuteOrderQueueButton.IsEnabled = false;
-            OrderQueuePlanStatusText.Text = "OCR diperbarui. Buat ulang rencana dan periksa kuantitas sebelum eksekusi.";
+            OrderQueuePlanStatusText.Text = "Pesanan berhasil dibaca. Periksa nama dan jumlah di bagian 04, lalu segera buat rencana di bagian 06.";
+            OrderQueuePlanOutputText.Text = "Hasil OCR terbaru sudah tersedia.\n\nTekan 'Buat rencana dari hasil OCR' untuk mencocokkan item dengan katalog.";
 
             OrderCropPreview.Source = ToBitmapSource(result.CroppedFrame);
             OrderScanMetaText.Text =
@@ -342,7 +343,8 @@ public partial class MainWindow : Window
             _currentOrderPlan = null;
             ExecuteOrderQueueButton.IsEnabled = false;
             ConfirmCatalogCoordinatesCheckBox.IsChecked = false;
-            OrderQueuePlanStatusText.Text = "Katalog diperbarui. Periksa seluruh marker, lalu centang konfirmasi koordinat.";
+            OrderQueuePlanStatusText.Text = "Katalog diperbarui. Periksa marker pada preview, kunci katalog, lalu centang konfirmasi di bagian 05.";
+            OrderQueuePlanOutputText.Text = "Katalog baru saja diperbarui.\n\nSelesaikan verifikasi dan scan panel pesanan sebelum membuat rencana.";
             _lastShelfDetections = stableSnapshot.Items;
             _lastObservedCatalogKeys.Clear();
             foreach (var key in stableSnapshot.ObservedKeys)
@@ -386,31 +388,102 @@ public partial class MainWindow : Window
         }
     }
 
+    private async void ScanAndBuildOrderPlan_Click(object sender, RoutedEventArgs e)
+    {
+        if (_queueRunning)
+            return;
+
+        if (SelectedTarget is null)
+        {
+            OrderQueuePlanStatusText.Text = "Belum ada game dipilih. Kembali ke bagian 01, pilih jendela Warung Life Simulator, lalu coba lagi.";
+            return;
+        }
+
+        if (Volatile.Read(ref _scanBusy) != 0)
+        {
+            OrderQueuePlanStatusText.Text = "OCR otomatis sedang berjalan. Tunggu sampai selesai, lalu tekan tombol ini sekali lagi.";
+            return;
+        }
+
+        BuildOrderPlanButton.IsEnabled = false;
+        var resumeAutoScan = _autoOrderScanEnabled;
+        _autoOrderScanEnabled = false;
+        OrderQueuePlanStatusText.Text = "Mengambil frame terbaru dan membaca panel pesanan...";
+        try
+        {
+            var frame = _lastFrame;
+            var previousFrameAt = frame?.CapturedAt ?? DateTimeOffset.MinValue;
+            var frameIsStale = frame is null || DateTimeOffset.UtcNow - frame.CapturedAt > TimeSpan.FromSeconds(2);
+            if (!_livePreviewRunning || frameIsStale)
+            {
+                await CaptureSelectedWindowAsync(isLive: false);
+                frame = _lastFrame;
+                if (frame is null || frame.CapturedAt <= previousFrameAt)
+                {
+                    OrderQueuePlanStatusText.Text = "Capture terbaru belum berhasil. Pastikan game terlihat dan tidak tertutup, lalu coba lagi.";
+                    return;
+                }
+            }
+
+            if (frame is null)
+            {
+                OrderQueuePlanStatusText.Text = "Capture belum tersedia. Pastikan jendela game terlihat, lalu coba lagi.";
+                return;
+            }
+
+            var previousScanAt = _lastOrderScanAtUtc;
+            await ScanOrderPanelAsync(frame, isAutomatic: false);
+            if (_lastOrderScanResult is null || _lastOrderScanAtUtc <= previousScanAt)
+            {
+                OrderQueuePlanStatusText.Text = "OCR belum menghasilkan pembacaan baru. Periksa crop di bagian 04 dan sesuaikan ROI jika perlu.";
+                return;
+            }
+
+            BuildOrderPlan_Click(sender, e);
+        }
+        catch (Exception ex)
+        {
+            OrderQueuePlanStatusText.Text = $"Gagal membaca pesanan: {ex.Message}";
+            AddLog($"Scan dan pembuatan rencana gagal: {ex.Message}");
+        }
+        finally
+        {
+            _autoOrderScanEnabled = resumeAutoScan;
+            BuildOrderPlanButton.IsEnabled = true;
+        }
+    }
+
     private void BuildOrderPlan_Click(object sender, RoutedEventArgs e)
     {
+        if (SelectedTarget is null)
+        {
+            OrderQueuePlanStatusText.Text = "Belum ada game dipilih. Kembali ke bagian 01, pilih jendela Warung Life Simulator, lalu coba lagi.";
+            return;
+        }
+
         if (_lastOrderScanResult is null ||
             DateTimeOffset.UtcNow - _lastOrderScanAtUtc > MaximumOrderScanAge)
         {
-            OrderQueuePlanStatusText.Text = "Hasil OCR belum tersedia atau sudah kedaluwarsa. Scan ulang panel pesanan.";
+            OrderQueuePlanStatusText.Text = "Belum ada hasil OCR yang cukup baru. Tekan 'Baca pesanan & buat rencana' untuk memindai ulang.";
             AddLog("Rencana antrean ditolak: hasil OCR tidak tersedia atau kedaluwarsa.");
             return;
         }
 
         if (_lastShelfDetections.Count != StableCatalogManager.ExpectedCatalogCount)
         {
-            OrderQueuePlanStatusText.Text = "Katalog belum lengkap. Jalankan Scan & verifikasi katalog terlebih dahulu.";
+            OrderQueuePlanStatusText.Text = "Katalog belum lengkap. Buka bagian 05, tekan Scan & verifikasi katalog sampai 37/37 slot.";
             return;
         }
 
         if (!_stableCatalogManager.IsLocked)
         {
-            OrderQueuePlanStatusText.Text = "Katalog belum terkunci. Selesaikan kalibrasi dan kunci katalog.";
+            OrderQueuePlanStatusText.Text = "Katalog belum dikunci. Buka bagian 05 dan tekan Kunci katalog setelah hasilnya 37/37.";
             return;
         }
 
         if (!ConfirmCatalogCoordinatesCheckBox.IsChecked.GetValueOrDefault())
         {
-            OrderQueuePlanStatusText.Text = "Konfirmasi visual belum diberikan. Periksa marker pada preview terlebih dahulu.";
+            OrderQueuePlanStatusText.Text = "Konfirmasi marker belum dicentang. Di bagian 05, periksa lingkaran pada preview lalu centang konfirmasi posisi marker.";
             return;
         }
 
@@ -420,13 +493,13 @@ public partial class MainWindow : Window
             _lastOrderScanFrameWidth != _lastCatalogFrameWidth ||
             _lastOrderScanFrameHeight != _lastCatalogFrameHeight)
         {
-            OrderQueuePlanStatusText.Text = "Ukuran frame berubah sejak katalog dipindai. Scan ulang katalog dan panel pesanan.";
+            OrderQueuePlanStatusText.Text = "Ukuran jendela game berubah. Ulangi scan katalog di bagian 05 dan scan pesanan di bagian 04.";
             return;
         }
 
         if (DateTimeOffset.UtcNow - _lastCatalogScanAtUtc > TimeSpan.FromMinutes(10))
         {
-            OrderQueuePlanStatusText.Text = "Pemeriksaan katalog sudah lebih dari 10 menit. Scan ulang dan verifikasi marker.";
+            OrderQueuePlanStatusText.Text = "Verifikasi katalog sudah lebih dari 10 menit. Scan ulang dan periksa marker di bagian 05.";
             return;
         }
 
@@ -449,14 +522,14 @@ public partial class MainWindow : Window
                 $"RENCANA SIAP • {plan.Steps.Count} jenis produk • {plan.TotalClicks} klik\n" +
                 string.Join(Environment.NewLine, lines);
             OrderQueuePlanStatusText.Text =
-                $"Rencana siap ditinjau. Hasil OCR berumur {(DateTimeOffset.UtcNow - _lastOrderScanAtUtc).TotalSeconds:0.0} detik. Eksekusi belum dimulai.";
+                $"Rencana siap diperiksa: {plan.Steps.Count} jenis barang, {plan.TotalClicks} klik. Periksa daftar di bawah; belum ada klik yang dikirim. Rencana berlaku 20 detik.";
             AddLog($"Rencana antrean dibuat: {plan.Steps.Count} jenis produk, {plan.TotalClicks} klik.");
         }
         else
         {
             OrderQueuePlanOutputText.Text =
                 "RENCANA DITAHAN\n" + string.Join(Environment.NewLine, plan.Issues.Select(issue => "• " + issue));
-            OrderQueuePlanStatusText.Text = $"Tidak dapat dieksekusi: {plan.Issues.Count} pemeriksaan belum lolos.";
+            OrderQueuePlanStatusText.Text = $"Rencana belum aman: {plan.Issues.Count} hal perlu diperbaiki. Baca daftar masalah di kotak bawah.";
             AddLog("Rencana antrean ditahan: " + string.Join(" | ", plan.Issues));
         }
     }

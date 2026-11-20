@@ -1,4 +1,4 @@
-# Warung Auto Bag Assistant PC — v0.4.0 (Phase 4.0 Smart Order Queue)
+# Warung Auto Bag Assistant PC — v0.4.1 (Phase 4.1 Guided Smart Order Queue)
 
 Windows desktop companion prototype for Warung Life Simulator running in Google Play Games on PC.
 
@@ -302,3 +302,29 @@ dotnet publish .\src\WABA.Desktop\WABA.Desktop.csproj -c Release -r win-x64 --se
 ```
 
 GitHub Actions artifact: `WABA-Desktop-v0.4.0-Phase4-win-x64`.
+
+
+## Phase 4.1 — Guided Smart Order Queue UI
+
+This update makes the order workflow easier to follow without changing the v0.3.3 stable 37-slot catalogue or the OCR recognition algorithms. The queue card now explains prerequisites, shows a dedicated plan status, and separates planning from real mouse execution.
+
+- One primary action captures the latest frame, runs order OCR, and builds a plan.
+- The user reviews product names, remaining quantities, and target coordinates before execution.
+- Execution remains disabled until the plan passes all safety checks.
+- Disabled buttons now use a readable dark theme instead of the Windows white/grey default.
+- The Google Play Games window selector uses dark foreground/background colors for improved contrast.
+- A plan expires when its order OCR is older than 20 seconds.
+- The user must still confirm the execution dialog; clicks are real mouse input.
+
+### Recommended use
+
+1. Select the game window in section 01 and keep it visible.
+2. Start Live Preview in section 02.
+3. In section 05, scan the catalogue, confirm the 37 markers, and ensure the catalogue is locked. If recalibration is open, complete three scans before locking.
+4. Show the customer order in the game.
+5. In section 06, click **Baca pesanan & buat rencana**. WABA captures a fresh frame, reads the order, and prepares the plan.
+6. Check the displayed products and quantities. If any item or quantity is wrong, do not execute; adjust the order-panel ROI in section 04 and try again.
+7. Click **Jalankan rencana** only when the plan is correct, then confirm the warning dialog.
+8. Verify the bag and remaining quantities in the game. Stop the queue if a dialog, tip, or minigame appears.
+
+The queue does not yet verify that each click was accepted by the game. It remains supervised and confirm-gated.
