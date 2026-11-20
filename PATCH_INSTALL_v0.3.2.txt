@@ -1,0 +1,15 @@
+WABA Desktop v0.3.2 patch installation
+
+1. Back up the current repository.
+2. Extract this patch.
+3. Copy the contents of WABA-Desktop-main into the repository root, preserving folders.
+4. Allow the listed files to be overwritten.
+5. Commit and push to the main branch.
+6. Confirm the GitHub Actions Windows x64 build and download the artifact.
+
+Commit suggestion:
+  git add .
+  git commit -m "WABA v0.3.2 add stable catalog engine"
+  git push origin main
+
+The patch does not enable automatic gestures. Product coordinates remain unvalidated for automated input.

@@ -1,7 +1,7 @@
 <Window x:Class="WABA.Desktop.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Warung Auto Bag Assistant PC — Phase 3.1.4"
+        Title="Warung Auto Bag Assistant PC — Phase 3.2 Stable Catalog"
         Width="820" Height="820" MinWidth="760" MinHeight="620"
         WindowStartupLocation="CenterScreen"
         Background="{StaticResource WindowBrush}">
@@ -19,7 +19,7 @@
             </Grid.ColumnDefinitions>
             <StackPanel>
                 <TextBlock Text="WARUNG AUTO BAG ASSISTANT" FontSize="23" FontWeight="Bold"/>
-                <TextBlock Text="PC DESKTOP COMPANION  •  PHASE 3.1.4 TARGETED ROI OCR"
+                <TextBlock Text="PC DESKTOP COMPANION  •  PHASE 3.2 STABLE CATALOG ENGINE"
                            Foreground="{StaticResource MutedBrush}" FontSize="11" Margin="1,4,0,0"/>
             </StackPanel>
             <Border Grid.Column="1" Background="#183B30" BorderBrush="#2C7458"
@@ -142,11 +142,17 @@
                     <Border Background="{StaticResource PanelBrush}" CornerRadius="12" Padding="16" Margin="0,0,0,12">
                         <StackPanel>
                             <TextBlock Text="05  SMART ITEM DETECTION" FontWeight="Bold" FontSize="13" Margin="0,0,0,8"/>
-                            <TextBlock Text="Mencari label produk pada rak kiri, rak kanan, dan konter pulsa. Pemindaian ROI tambahan hanya untuk Gula dan slot 2 GB/5 GB yang belum terbaca. Titik kandidat tetap perlu verifikasi visual; belum mengirim klik." Foreground="{StaticResource MutedBrush}" FontSize="10" TextWrapping="Wrap" Margin="0,0,0,7"/>
-                            <Button x:Name="DetectShelfItemsButton" Content="◎  Deteksi lokasi barang pada rak" Click="DetectShelfItems_Click"/>
+                            <TextBlock Text="OCR membaca label rak sebagai observasi. Katalog 37 slot dipertahankan saat satu scan gagal; koordinat referensi tidak diganti oleh hasil OCR sementara." Foreground="{StaticResource MutedBrush}" FontSize="10" TextWrapping="Wrap" Margin="0,0,0,7"/>
+                            <Button x:Name="DetectShelfItemsButton" Content="◎  Scan &amp; verifikasi katalog" Click="DetectShelfItems_Click"/>
                             <TextBlock x:Name="ShelfDetectionEngineText" Text="Memeriksa Windows OCR..." Foreground="{StaticResource MutedBrush}" FontSize="10" TextWrapping="Wrap" Margin="0,5,0,0"/>
                             <TextBlock x:Name="ShelfDetectionStatusText" Text="Belum ada deteksi lokasi barang." Foreground="#65D6A3" FontSize="10" TextWrapping="Wrap" Margin="0,5,0,5"/>
-                            <TextBox x:Name="ShelfDetectionOutputText" IsReadOnly="True" Text="Hasil deteksi lokasi produk akan tampil di sini." TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" Background="#080C12" BorderBrush="#34445A" Foreground="#DCE6F1" FontSize="9" Padding="6" Height="120"/>
+                            <TextBlock x:Name="CatalogStateText" Text="Memuat stable catalog..." Foreground="#8FC7FF" FontSize="10" TextWrapping="Wrap" Margin="0,2,0,5"/>
+                            <TextBlock Text="Legenda preview: hijau/oranye = terbaca OCR saat ini; biru = dipertahankan dari baseline." Foreground="{StaticResource MutedBrush}" FontSize="9" TextWrapping="Wrap" Margin="0,0,0,7"/>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,7">
+                                <Button x:Name="LockCatalogButton" Content="Kunci katalog" Click="LockCatalog_Click" Margin="0,0,7,0" Padding="10,6"/>
+                                <Button Content="Kalibrasi ulang" Click="RecalibrateCatalog_Click" Padding="10,6" Background="#65452A"/>
+                            </StackPanel>
+                            <TextBox x:Name="ShelfDetectionOutputText" IsReadOnly="True" Text="Hasil deteksi lokasi produk akan tampil di sini." TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" Background="#080C12" BorderBrush="#34445A" Foreground="#DCE6F1" FontSize="9" Padding="6" Height="150"/>
                         </StackPanel>
                     </Border>
 
@@ -171,7 +177,7 @@
                             </StackPanel>
                             <StackPanel Orientation="Horizontal" Margin="0,3">
                                 <TextBlock Text="Shelf detection" Width="178" Foreground="#9BA9BA" FontSize="11"/>
-                                <TextBlock Text="PHASE 3.1.4 • VERIFY ONLY" Foreground="#F0C18B" FontSize="10" FontWeight="SemiBold"/>
+                                <TextBlock Text="PHASE 3.2 • STABLE CATALOG" Foreground="#F0C18B" FontSize="10" FontWeight="SemiBold"/>
                             </StackPanel>
                         </StackPanel>
                     </Border>

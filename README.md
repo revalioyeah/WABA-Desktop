@@ -228,3 +228,14 @@ Counter OCR aliases now include observed glyph substitutions such as `50B`/`5OB`
 The targeted passes run only for missing products, not on every frame and not as part of Phase 2 order OCR. At most three small extra OCR crops are processed in one shelf scan. No automatic click or order execution is introduced.
 
 For the supplied 1767x992 reference screenshot, the targeted candidate positions are scaled from client-area proportions. They are preview estimates, not click-validated coordinates. Check every marker in the live WABA preview before any future input phase.
+
+
+## v0.3.2 — Stable Catalog Engine
+
+- Keeps the 37 user-reported product slots as a stable reference catalogue.
+- A transient OCR miss no longer removes a product from the displayed catalogue.
+- Latest scan observations are shown separately from retained baseline entries.
+- Catalogue coordinates are stored in `%LOCALAPPDATA%\\WABA Desktop\\stable-catalog.json`.
+- Catalogue recalibration is explicit and requires 2 of 3 consistent observations.
+- The shelf detector and order-panel OCR algorithms remain separate.
+- This version does not enable automatic item gestures. Coordinates still require visual validation.

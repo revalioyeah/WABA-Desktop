@@ -9,7 +9,7 @@ using WABA.Recognition.Models;
 namespace WABA.Recognition.Services;
 
 /// <summary>
-/// Phase 3.1.4 label-based shelf detector. It estimates product positions only;
+/// Phase 3.1.5 label-based shelf detector. It estimates product positions only;
 /// it never sends mouse input. All target coordinates require visual validation.
 /// </summary>
 public sealed class ShelfItemDetector
@@ -41,7 +41,7 @@ public sealed class ShelfItemDetector
 
     public string EngineDescription => _engine is null
         ? "Windows OCR tidak tersedia untuk deteksi rak."
-        : $"Shelf OCR • {_engine.RecognizerLanguage.LanguageTag} • anchor-based shelf + counter fallback v0.3.1.5";
+        : $"Shelf OCR • {_engine.RecognizerLanguage.LanguageTag} • anchor-based shelf + counter fallback v0.3.1.5 (Stable Catalog managed by desktop layer)";
 
     public async Task<ShelfDetectionResult> DetectAsync(
         CapturedFrame frame,

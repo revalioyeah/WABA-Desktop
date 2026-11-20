@@ -1,35 +1,38 @@
 product_name,client_x,client_y,area,text_match_score_percent,reference_frame_width,reference_frame_height,validation_status
-Mie rebus,351,316,LEFT_SHELF,100,1831,1028,user_reported_text_score_coordinate_not_click_validated
-Telur,494,316,LEFT_SHELF,100,1831,1028,user_reported_text_score_coordinate_not_click_validated
-Mie goreng,206,318,LEFT_SHELF,100,1831,1028,user_reported_text_score_coordinate_not_click_validated
-Kopi sachet,638,318,LEFT_SHELF,100,1831,1028,user_reported_text_score_coordinate_not_click_validated
-Beras,206,428,LEFT_SHELF,100,1831,1028,user_reported_text_score_coordinate_not_click_validated
-Buku tulis,351,428,LEFT_SHELF,100,1831,1028,user_reported_text_score_coordinate_not_click_validated
-Makanan kucing,495,429,LEFT_SHELF,100,1831,1028,user_reported_text_score_coordinate_not_click_validated
-Sayuran,639,430,LEFT_SHELF,100,1831,1028,user_reported_text_score_coordinate_not_click_validated
-Obat,208,541,LEFT_SHELF,100,1831,1028,user_reported_text_score_coordinate_not_click_validated
-Galon,350,541,LEFT_SHELF,100,1831,1028,user_reported_text_score_coordinate_not_click_validated
-LPG 3 kg,494,543,LEFT_SHELF,100,1831,1028,user_reported_text_score_coordinate_not_click_validated
-Minyak goreng,351,653,LEFT_SHELF,100,1831,1028,user_reported_text_score_coordinate_not_click_validated
-Sabun mandi,495,653,LEFT_SHELF,100,1831,1028,user_reported_text_score_coordinate_not_click_validated
-Teh celup,206,655,LEFT_SHELF,89,1831,1028,user_reported_text_score_coordinate_not_click_validated
-Deterjen,638,655,LEFT_SHELF,100,1831,1028,user_reported_text_score_coordinate_not_click_validated
-Token listrik,692,909,PULSE_COUNTER,100,1831,1028,user_reported_text_score_coordinate_not_click_validated
-E-Wallet,268,910,PULSE_COUNTER,100,1831,1028,user_reported_text_score_coordinate_not_click_validated
-10 GB,586,910,PULSE_COUNTER,80,1831,1028,user_reported_text_score_coordinate_not_click_validated
-Ciki,1133,316,RIGHT_SHELF,100,1831,1028,user_reported_text_score_coordinate_not_click_validated
-Permen,1278,316,RIGHT_SHELF,100,1831,1028,user_reported_text_score_coordinate_not_click_validated
-Biskuit,1423,316,RIGHT_SHELF,100,1831,1028,user_reported_text_score_coordinate_not_click_validated
-Air mineral,1566,316,RIGHT_SHELF,100,1831,1028,user_reported_text_score_coordinate_not_click_validated
-Roti,1133,428,RIGHT_SHELF,100,1831,1028,user_reported_text_score_coordinate_not_click_validated
-Jamu,1277,428,RIGHT_SHELF,100,1831,1028,user_reported_text_score_coordinate_not_click_validated
-Teh botol,1422,429,RIGHT_SHELF,89,1831,1028,user_reported_text_score_coordinate_not_click_validated
-Kerupuk,1566,430,RIGHT_SHELF,100,1831,1028,user_reported_text_score_coordinate_not_click_validated
-Minuman energi,1422,541,RIGHT_SHELF,100,1831,1028,user_reported_text_score_coordinate_not_click_validated
-Soda,1565,541,RIGHT_SHELF,100,1831,1028,user_reported_text_score_coordinate_not_click_validated
-Rengginang,1144,543,RIGHT_SHELF,80,1831,1028,user_reported_text_score_coordinate_not_click_validated
-Kopi susu,1278,543,RIGHT_SHELF,100,1831,1028,user_reported_text_score_coordinate_not_click_validated
-Susu kotak,1134,653,RIGHT_SHELF,100,1831,1028,user_reported_text_score_coordinate_not_click_validated
-Es krim,1277,653,RIGHT_SHELF,100,1831,1028,user_reported_text_score_coordinate_not_click_validated
-Kurma,1422,653,RIGHT_SHELF,100,1831,1028,user_reported_text_score_coordinate_not_click_validated
-Sirup,1566,655,RIGHT_SHELF,100,1831,1028,user_reported_text_score_coordinate_not_click_validated
+Mie rebus,351,316,LEFT_SHELF,100,1831,1028,user_reported_baseline_not_click_validated
+Telur,494,316,LEFT_SHELF,100,1831,1028,user_reported_baseline_not_click_validated
+Mie goreng,206,318,LEFT_SHELF,100,1831,1028,user_reported_baseline_not_click_validated
+Kopi sachet,638,318,LEFT_SHELF,100,1831,1028,user_reported_baseline_not_click_validated
+Beras,206,428,LEFT_SHELF,100,1831,1028,user_reported_baseline_not_click_validated
+Buku tulis,351,429,LEFT_SHELF,100,1831,1028,user_reported_baseline_not_click_validated
+Makanan kucing,495,429,LEFT_SHELF,100,1831,1028,user_reported_baseline_not_click_validated
+Sayuran,639,430,LEFT_SHELF,100,1831,1028,user_reported_baseline_not_click_validated
+Obat,208,541,LEFT_SHELF,100,1831,1028,user_reported_baseline_not_click_validated
+Galon,350,541,LEFT_SHELF,100,1831,1028,user_reported_baseline_not_click_validated
+Gula,638,541,LEFT_SHELF,72,1831,1028,user_reported_baseline_not_click_validated
+LPG 3 kg,494,543,LEFT_SHELF,100,1831,1028,user_reported_baseline_not_click_validated
+Minyak goreng,351,653,LEFT_SHELF,100,1831,1028,user_reported_baseline_not_click_validated
+Sabun mandi,495,653,LEFT_SHELF,100,1831,1028,user_reported_baseline_not_click_validated
+Teh celup,206,655,LEFT_SHELF,89,1831,1028,user_reported_baseline_not_click_validated
+Deterjen,638,655,LEFT_SHELF,100,1831,1028,user_reported_baseline_not_click_validated
+E-Wallet,268,874,PULSE_COUNTER,100,1831,1028,user_reported_baseline_not_click_validated
+2 GB,374,874,PULSE_COUNTER,74,1831,1028,user_reported_baseline_not_click_validated
+5 GB,480,874,PULSE_COUNTER,94,1831,1028,user_reported_baseline_not_click_validated
+10 GB,586,874,PULSE_COUNTER,80,1831,1028,user_reported_baseline_not_click_validated
+Token listrik,692,874,PULSE_COUNTER,100,1831,1028,user_reported_baseline_not_click_validated
+Ciki,1133,316,RIGHT_SHELF,100,1831,1028,user_reported_baseline_not_click_validated
+Permen,1278,316,RIGHT_SHELF,100,1831,1028,user_reported_baseline_not_click_validated
+Biskuit,1423,316,RIGHT_SHELF,100,1831,1028,user_reported_baseline_not_click_validated
+Air mineral,1566,316,RIGHT_SHELF,100,1831,1028,user_reported_baseline_not_click_validated
+Roti,1133,428,RIGHT_SHELF,100,1831,1028,user_reported_baseline_not_click_validated
+Jamu,1277,428,RIGHT_SHELF,100,1831,1028,user_reported_baseline_not_click_validated
+Teh botol,1422,429,RIGHT_SHELF,89,1831,1028,user_reported_baseline_not_click_validated
+Kerupuk,1566,430,RIGHT_SHELF,100,1831,1028,user_reported_baseline_not_click_validated
+Minuman energi,1422,541,RIGHT_SHELF,100,1831,1028,user_reported_baseline_not_click_validated
+Soda,1565,541,RIGHT_SHELF,100,1831,1028,user_reported_baseline_not_click_validated
+Rengginang,1134,543,RIGHT_SHELF,100,1831,1028,user_reported_baseline_not_click_validated
+Kopi susu,1278,543,RIGHT_SHELF,100,1831,1028,user_reported_baseline_not_click_validated
+Susu kotak,1134,653,RIGHT_SHELF,100,1831,1028,user_reported_baseline_not_click_validated
+Es krim,1277,653,RIGHT_SHELF,100,1831,1028,user_reported_baseline_not_click_validated
+Kurma,1422,653,RIGHT_SHELF,100,1831,1028,user_reported_baseline_not_click_validated
+Sirup,1566,655,RIGHT_SHELF,100,1831,1028,user_reported_baseline_not_click_validated

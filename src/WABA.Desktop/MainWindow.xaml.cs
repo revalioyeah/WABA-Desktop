@@ -20,6 +20,7 @@ public partial class MainWindow : Window
     private readonly MouseInputService _mouseInputService = new();
     private readonly OrderPanelScanner _orderPanelScanner = new();
     private readonly ShelfItemDetector _shelfItemDetector = new();
+    private readonly StableCatalogManager _stableCatalogManager = new();
     private readonly OrderPanelChangeDetector _orderChangeDetector = new();
     private readonly ObservableCollection<GameWindowInfo> _windows = new();
     private readonly ObservableCollection<string> _logs = new();
@@ -27,6 +28,7 @@ public partial class MainWindow : Window
 
     private CapturedFrame? _lastFrame;
     private IReadOnlyList<ShelfItemDetection> _lastShelfDetections = Array.Empty<ShelfItemDetection>();
+    private readonly HashSet<string> _lastObservedCatalogKeys = new(StringComparer.OrdinalIgnoreCase);
     private bool _livePreviewRunning;
     private bool _autoOrderScanEnabled;
     private int _frameCount;
@@ -50,7 +52,9 @@ public partial class MainWindow : Window
         RefreshWindows();
         OrderEngineText.Text = _orderPanelScanner.EngineDescription;
         ShelfDetectionEngineText.Text = _shelfItemDetector.EngineDescription;
-        AddLog("WABA Desktop v0.3.1.5 siap • anchor-based shelf/counter fallback; koordinat tetap perlu verifikasi.");
+        CatalogStateText.Text = _stableCatalogManager.GetInitialStatus();
+        UpdateCatalogControls();
+        AddLog("WABA Desktop v0.3.2 siap • Stable Catalog Engine dengan baseline 37 slot.");
         AddLog("Capture berjalan terpisah dari proses OCR.");
         AddLog("OCR memakai Windows OCR dan bahasa yang tersedia di perangkat.");
     }
@@ -92,6 +96,7 @@ public partial class MainWindow : Window
 
         _lastFrame = null;
         _lastShelfDetections = Array.Empty<ShelfItemDetection>();
+        _lastObservedCatalogKeys.Clear();
         DetectionOverlayCanvas.Children.Clear();
         ShelfDetectionOutputText.Text = "Belum ada deteksi lokasi barang.";
         _orderChangeDetector.Reset();
@@ -299,22 +304,36 @@ public partial class MainWindow : Window
         try
         {
             var result = await _shelfItemDetector.DetectAsync(frame);
-            _lastShelfDetections = result.Items;
+            var stableSnapshot = _stableCatalogManager.Merge(result, frame.Width, frame.Height);
+            _lastShelfDetections = stableSnapshot.Items;
+            _lastObservedCatalogKeys.Clear();
+            foreach (var key in stableSnapshot.ObservedKeys)
+                _lastObservedCatalogKeys.Add(key);
+
             RenderShelfDetectionOverlay();
 
-            var lines = result.Items.Select((item, index) =>
-                $"{index + 1}. {item.ProductName} | X={item.ClientX}, Y={item.ClientY} | {item.Area} | skor teks {item.Confidence:P0}");
-            var detectionList = result.Items.Count == 0
-                ? "Belum ada label produk yang cocok. Pastikan rak terlihat jelas dan tidak tertutup."
-                : string.Join(Environment.NewLine, lines);
+            var lines = stableSnapshot.Items.Select((item, index) =>
+            {
+                var key = StableCatalogManager.MakeKey(item.Area, item.ProductName);
+                var observedNow = _lastObservedCatalogKeys.Contains(key);
+                var state = observedNow ? "LIVE OCR" : "BASELINE RETAINED";
+                return $"{index + 1}. {item.ProductName} | X={item.ClientX}, Y={item.ClientY} | " +
+                       $"{item.Area} | skor teks {item.Confidence:P0} | {state}";
+            });
             ShelfDetectionOutputText.Text =
-                detectionList + Environment.NewLine + Environment.NewLine +
-                "DIAGNOSTIK AREA" + Environment.NewLine + result.Diagnostics;
+                $"STABLE CATALOG ({stableSnapshot.Items.Count}/{stableSnapshot.TotalCount} slot)\n" +
+                string.Join(Environment.NewLine, lines) + Environment.NewLine + Environment.NewLine +
+                $"SCAN SAAT INI: {stableSnapshot.ObservedCount}/{stableSnapshot.TotalCount} produk cocok OCR\n" +
+                "DIAGNOSTIK OCR MENTAH\n" + result.Diagnostics;
 
-            ShelfDetectionStatusText.Text = result.Items.Count > 0
-                ? $"Selesai • {result.Items.Count} kandidat lokasi ditemukan dalam {result.Duration.TotalMilliseconds:0} ms. Periksa titik pada preview; belum ada klik yang dikirim."
-                : $"Tidak ada kandidat lokasi • {result.Duration.TotalMilliseconds:0} ms.";
-            AddLog($"Deteksi rak: {result.Items.Count} kandidat, {result.Duration.TotalMilliseconds:0} ms.");
+            CatalogStateText.Text = stableSnapshot.Status;
+            UpdateCatalogControls();
+            ShelfDetectionStatusText.Text =
+                $"Scan selesai • {stableSnapshot.ObservedCount}/{stableSnapshot.TotalCount} produk terbaca saat ini; " +
+                $"{stableSnapshot.Items.Count - stableSnapshot.ObservedCount} slot dipertahankan dari katalog. " +
+                $"{result.Duration.TotalMilliseconds:0} ms. Belum ada klik otomatis.";
+            AddLog($"Deteksi rak: {stableSnapshot.ObservedCount}/{stableSnapshot.TotalCount} cocok OCR; " +
+                   $"{stableSnapshot.Items.Count} slot stabil ditampilkan, {result.Duration.TotalMilliseconds:0} ms.");
             AddLog(result.Diagnostics);
             FooterStatusText.Text = "Deteksi lokasi selesai. Periksa kandidat dan diagnostik; koordinat belum digunakan untuk input.";
         }
@@ -350,11 +369,15 @@ public partial class MainWindow : Window
         {
             var x = offsetX + item.ClientX * scaleX;
             var y = offsetY + item.ClientY * scaleY;
-            var markerColor = item.Confidence >= 0.95d
-                ? Colors.LawnGreen
-                : item.Confidence >= 0.80d
-                    ? Colors.Orange
-                    : Colors.OrangeRed;
+            var isObservedNow = _lastObservedCatalogKeys.Contains(
+                StableCatalogManager.MakeKey(item.Area, item.ProductName));
+            var markerColor = !isObservedNow
+                ? Colors.DeepSkyBlue
+                : item.Confidence >= 0.95d
+                    ? Colors.LawnGreen
+                    : item.Confidence >= 0.80d
+                        ? Colors.Orange
+                        : Colors.OrangeRed;
             var marker = new Ellipse
             {
                 Width = 18,
@@ -362,7 +385,7 @@ public partial class MainWindow : Window
                 Stroke = new SolidColorBrush(markerColor),
                 StrokeThickness = 3,
                 Fill = new SolidColorBrush(Color.FromArgb(55, markerColor.R, markerColor.G, markerColor.B)),
-                ToolTip = $"{item.ProductName} • ({item.ClientX}, {item.ClientY}) • {item.Area} • skor teks {item.Confidence:P0} • koordinat belum divalidasi"
+                ToolTip = $"{item.ProductName} • ({item.ClientX}, {item.ClientY}) • {item.Area} • skor teks {item.Confidence:P0} • {(isObservedNow ? "LIVE OCR" : "BASELINE RETAINED")} • koordinat belum divalidasi"
             };
             Canvas.SetLeft(marker, x - marker.Width / 2d);
             Canvas.SetTop(marker, y - marker.Height / 2d);
@@ -381,6 +404,39 @@ public partial class MainWindow : Window
             Canvas.SetTop(label, Math.Clamp(y - 12, 0, Math.Max(0, canvasHeight - 22)));
             DetectionOverlayCanvas.Children.Add(label);
         }
+    }
+
+    private void UpdateCatalogControls()
+    {
+        LockCatalogButton.Content = _stableCatalogManager.IsLocked
+            ? "✓ Katalog terkunci"
+            : "Kunci katalog (setelah 3 scan)";
+        LockCatalogButton.IsEnabled = _stableCatalogManager.CanLockCatalog;
+    }
+
+    private void LockCatalog_Click(object sender, RoutedEventArgs e)
+    {
+        CatalogStateText.Text = _stableCatalogManager.LockCatalog();
+        UpdateCatalogControls();
+        AddLog(CatalogStateText.Text);
+    }
+
+    private void RecalibrateCatalog_Click(object sender, RoutedEventArgs e)
+    {
+        var confirmation = MessageBox.Show(
+            "Kalibrasi ulang akan membuka kunci koordinat katalog. Lakukan 3 pemindaian manual pada kondisi rak yang stabil. " +
+            "Koordinat hanya diperbarui jika minimal 2 dari 3 pengamatan konsisten dan masih dalam batas toleransi. " +
+            "Katalog 37 produk tidak akan dihapus. Lanjutkan?",
+            "Konfirmasi kalibrasi katalog",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Warning);
+
+        if (confirmation != MessageBoxResult.Yes)
+            return;
+
+        CatalogStateText.Text = _stableCatalogManager.BeginRecalibration();
+        UpdateCatalogControls();
+        AddLog(CatalogStateText.Text);
     }
 
     private void DetectionOverlayCanvas_SizeChanged(object sender, SizeChangedEventArgs e)
