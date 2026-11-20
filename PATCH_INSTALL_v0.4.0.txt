@@ -1,0 +1,33 @@
+WABA DESKTOP v0.4.0 — INSTALL / UPDATE
+
+1. Back up your current WABA-Desktop repository.
+2. Extract this ZIP.
+3. Replace the files in your local Git repository with the extracted source.
+4. Commit and push to main:
+
+   git add .
+   git commit -m "WABA v0.4.0 add confirm-gated smart order queue"
+   git push origin main
+
+5. Open GitHub > Actions.
+6. Wait for the Windows build to finish successfully.
+7. Download artifact:
+   WABA-Desktop-v0.4.0-Phase4-win-x64
+
+FIRST TEST:
+- Keep Google Play Games visible and unobstructed.
+- Select the game window.
+- Start Live Preview.
+- Scan shelf catalogue and inspect all 37 markers.
+- Check the visual-marker confirmation box.
+- Scan the current order panel.
+- Build and inspect the plan.
+- Only then confirm the queue.
+- Start with a simple 1-2 item order before testing 7-8 item orders.
+
+SAFETY:
+- Real mouse clicks are sent to the selected game window.
+- Stop Order Queue cancels remaining clicks.
+- Tip dialogs, customer interruptions and minigames are not handled in this phase.
+- After a queue finishes, verify the bag and order quantities in the game.
+- Do not run unattended.

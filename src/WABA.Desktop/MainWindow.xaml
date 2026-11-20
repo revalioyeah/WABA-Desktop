@@ -1,7 +1,7 @@
 <Window x:Class="WABA.Desktop.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Warung Auto Bag Assistant PC — Phase 3.3 Marker Calibration"
+        Title="Warung Auto Bag Assistant PC — Phase 4.0 Smart Order Queue"
         Width="820" Height="820" MinWidth="760" MinHeight="620"
         WindowStartupLocation="CenterScreen"
         Background="{StaticResource WindowBrush}">
@@ -19,7 +19,7 @@
             </Grid.ColumnDefinitions>
             <StackPanel>
                 <TextBlock Text="WARUNG AUTO BAG ASSISTANT" FontSize="23" FontWeight="Bold"/>
-                <TextBlock Text="PC DESKTOP COMPANION  •  PHASE 3.3 MARKER CALIBRATION"
+                <TextBlock Text="PC DESKTOP COMPANION  •  PHASE 4.0 SMART ORDER QUEUE"
                            Foreground="{StaticResource MutedBrush}" FontSize="11" Margin="1,4,0,0"/>
             </StackPanel>
             <Border Grid.Column="1" Background="#183B30" BorderBrush="#2C7458"
@@ -148,6 +148,11 @@
                             <TextBlock x:Name="ShelfDetectionStatusText" Text="Belum ada deteksi lokasi barang." Foreground="#65D6A3" FontSize="10" TextWrapping="Wrap" Margin="0,5,0,5"/>
                             <TextBlock x:Name="CatalogStateText" Text="Memuat stable catalog..." Foreground="#8FC7FF" FontSize="10" TextWrapping="Wrap" Margin="0,2,0,5"/>
                             <TextBlock Text="Legenda preview: hijau/oranye = terbaca OCR saat ini; biru = dipertahankan dari baseline." Foreground="{StaticResource MutedBrush}" FontSize="9" TextWrapping="Wrap" Margin="0,0,0,7"/>
+                            <CheckBox x:Name="ConfirmCatalogCoordinatesCheckBox"
+                                      Content="Saya sudah memeriksa posisi marker pada preview"
+                                      Foreground="#DCE6F1" FontSize="10" Margin="0,0,0,7"
+                                      Checked="ConfirmCatalogCoordinatesCheckBox_Checked"
+                                      Unchecked="ConfirmCatalogCoordinatesCheckBox_Unchecked"/>
                             <StackPanel Orientation="Horizontal" Margin="0,0,0,7">
                                 <Button x:Name="LockCatalogButton" Content="Kunci katalog" Click="LockCatalog_Click" Margin="0,0,7,0" Padding="10,6"/>
                                 <Button Content="Kalibrasi ulang" Click="RecalibrateCatalog_Click" Padding="10,6" Background="#65452A"/>
@@ -156,9 +161,35 @@
                         </StackPanel>
                     </Border>
 
+                    <Border Background="{StaticResource PanelBrush}" CornerRadius="12" Padding="16" Margin="0,0,0,12">
+                        <StackPanel>
+                            <TextBlock Text="06  SMART ORDER QUEUE &amp; EXECUTION" FontWeight="Bold" FontSize="13" Margin="0,0,0,8"/>
+                            <TextBlock Text="Buat rencana dari hasil OCR terbaru dan katalog terkunci. Semua item, jumlah, serta koordinat harus valid. Eksekusi hanya berjalan setelah konfirmasi manual."
+                                       Foreground="{StaticResource MutedBrush}" FontSize="10" TextWrapping="Wrap" Margin="0,0,0,8"/>
+                            <Button x:Name="BuildOrderPlanButton" Content="◎  Buat rencana pesanan" Click="BuildOrderPlan_Click"/>
+                            <TextBlock x:Name="OrderQueuePlanStatusText" Text="Belum ada rencana pesanan."
+                                       Foreground="#8FC7FF" FontSize="10" TextWrapping="Wrap" Margin="0,5,0,5"/>
+                            <TextBox x:Name="OrderQueuePlanOutputText" IsReadOnly="True"
+                                     Text="Hasil rencana pesanan akan tampil di sini."
+                                     TextWrapping="Wrap" AcceptsReturn="True"
+                                     VerticalScrollBarVisibility="Auto"
+                                     Background="#080C12" BorderBrush="#34445A"
+                                     Foreground="#DCE6F1" FontSize="9"
+                                     Padding="6" Height="125"/>
+                            <Button x:Name="ExecuteOrderQueueButton" Content="▶  Jalankan antrean (klik sungguhan)"
+                                    Click="ExecuteOrderQueue_Click" IsEnabled="False"
+                                    Background="#245B45" BorderBrush="#3C9A70" Margin="0,7,0,0"/>
+                            <Button x:Name="StopOrderQueueButton" Content="■  Hentikan antrean"
+                                    Click="StopOrderQueue_Click" IsEnabled="False"
+                                    Background="#65452A" BorderBrush="#A87942"/>
+                            <TextBlock Text="Batas awal: maksimal 20 klik per rencana, jeda 105 ms antarklik. Dialog pelanggan, tips, dan minigame belum ditangani otomatis; hentikan antrean jika layar berubah."
+                                       Foreground="#F0C18B" FontSize="9" TextWrapping="Wrap" Margin="0,6,0,0"/>
+                        </StackPanel>
+                    </Border>
+
                     <Border Background="{StaticResource PanelBrush}" CornerRadius="12" Padding="16">
                         <StackPanel>
-                            <TextBlock Text="06  PHASE STATUS" FontWeight="Bold" FontSize="13" Margin="0,0,0,10"/>
+                            <TextBlock Text="07  PHASE STATUS" FontWeight="Bold" FontSize="13" Margin="0,0,0,10"/>
                             <StackPanel Orientation="Horizontal" Margin="0,3">
                                 <TextBlock Text="Window enumeration" Width="178" Foreground="#9BA9BA" FontSize="11"/>
                                 <TextBlock Text="READY" Foreground="#65D6A3" FontSize="10" FontWeight="SemiBold"/>
@@ -177,7 +208,11 @@
                             </StackPanel>
                             <StackPanel Orientation="Horizontal" Margin="0,3">
                                 <TextBlock Text="Shelf detection" Width="178" Foreground="#9BA9BA" FontSize="11"/>
-                                <TextBlock Text="PHASE 3.3 • MARKER CALIBRATION" Foreground="#F0C18B" FontSize="10" FontWeight="SemiBold"/>
+                                <TextBlock Text="PHASE 3.3 • STABLE CATALOG" Foreground="#65D6A3" FontSize="10" FontWeight="SemiBold"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0,3">
+                                <TextBlock Text="Order queue" Width="178" Foreground="#9BA9BA" FontSize="11"/>
+                                <TextBlock Text="PHASE 4.0 • CONFIRM-GATED" Foreground="#F0C18B" FontSize="10" FontWeight="SemiBold"/>
                             </StackPanel>
                         </StackPanel>
                     </Border>
@@ -199,7 +234,7 @@
                         </Grid.ColumnDefinitions>
                         <StackPanel>
                             <TextBlock Text="GAME WINDOW PREVIEW" FontWeight="Bold" FontSize="13"/>
-                            <TextBlock Text="Live capture • Phase 2 OCR • Phase 3.3 area-specific marker offsets" Foreground="{StaticResource MutedBrush}" FontSize="11" Margin="0,3,0,0"/>
+                            <TextBlock Text="Live capture • Phase 2 OCR • Phase 3.3 stable catalog • Phase 4.0 queue" Foreground="{StaticResource MutedBrush}" FontSize="11" Margin="0,3,0,0"/>
                         </StackPanel>
                         <TextBlock Grid.Column="1" x:Name="PreviewStateText" Text="WAITING"
                                    Foreground="{StaticResource MutedBrush}" FontWeight="Bold" VerticalAlignment="Center"/>
@@ -272,7 +307,7 @@
             </Grid.ColumnDefinitions>
             <TextBlock x:Name="FooterStatusText" Text="Ready — pilih jendela game untuk memulai."
                        Foreground="{StaticResource MutedBrush}" FontSize="11" VerticalAlignment="Center"/>
-            <TextBlock Grid.Column="1" Text=".NET 10  •  WABA PC 0.3.3-phase3.3-marker-calibration"
+            <TextBlock Grid.Column="1" Text=".NET 10  •  WABA PC 0.4.0-phase4-smart-order-queue"
                        Foreground="{StaticResource MutedBrush}" FontSize="11" VerticalAlignment="Center"/>
         </Grid>
     </Grid>

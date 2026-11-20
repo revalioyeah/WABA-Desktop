@@ -1,4 +1,4 @@
-# Warung Auto Bag Assistant PC — v0.3.3 (Phase 3.3 Area-Specific Marker Calibration)
+# Warung Auto Bag Assistant PC — v0.4.0 (Phase 4.0 Smart Order Queue)
 
 Windows desktop companion prototype for Warung Life Simulator running in Google Play Games on PC.
 
@@ -258,3 +258,47 @@ the 2-of-3 recalibration consensus.
 The offsets are initial user-requested calibration values and still require visual
 verification in the live preview. Do not treat them as click-validated coordinates.
 No automatic item clicking or unattended execution is enabled by this patch.
+
+
+## Phase 4.0 — Smart Order Queue & Confirm-Gated Execution
+
+Phase 4.0 adds a reviewable order planner and a manually confirmed multi-click queue.
+
+### Workflow
+
+1. Keep the game visible and select its window.
+2. Start live preview or capture a frame.
+3. Scan the 37-slot shelf catalogue and visually inspect every marker.
+4. Check **Saya sudah memeriksa posisi marker pada preview**.
+5. Scan the current order panel. The automatic monitor may refresh OCR when the order ROI changes.
+6. Select **Buat rencana pesanan**. The planner maps every recognized product to exactly one locked catalogue slot.
+7. Review all product names, remaining quantities, and client-relative coordinates.
+8. Select **Jalankan antrean** and explicitly confirm the real mouse input.
+
+### Execution safeguards
+
+- The catalogue must be locked and contain all 37 slots.
+- The current frame dimensions must match the dimensions used for the latest catalogue scan.
+- The order OCR must be no older than 8 seconds.
+- Unknown product names, unreadable quantities, duplicate product rows, missing coordinates, invalid coordinates, and excessive click counts block the plan.
+- Maximum 20 clicks per plan and 105 ms between clicks in this initial test build.
+- The game window is focused once per batch; clicks then use a fast path without a 120 ms focus delay on every item.
+- A Stop button cancels the remaining queue.
+- A plan is invalidated when a new OCR result or a new catalogue scan arrives.
+- Successful input delivery only confirms that Windows accepted the mouse events; it does not prove that the game registered every item. Verify the order panel and bag after each test.
+
+### Current limitations
+
+- No automatic handling of tip dialogs, customer interruptions, or minigames.
+- No closed-loop quantity verification after every click.
+- No automatic recovery when an item is out of stock or a click is missed.
+- Execution is not unattended: the user must review the plan and confirm each batch.
+
+### Build
+
+```powershell
+dotnet restore .\WarungAutoBagAssistant.PC.sln
+dotnet publish .\src\WABA.Desktop\WABA.Desktop.csproj -c Release -r win-x64 --self-contained true -o .\artifacts\publish
+```
+
+GitHub Actions artifact: `WABA-Desktop-v0.4.0-Phase4-win-x64`.

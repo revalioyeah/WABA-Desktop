@@ -12,8 +12,8 @@ public sealed record MouseClickResult(
     string Message);
 
 /// <summary>
-/// Sends one real left click to a client-relative point in the selected window.
-/// This is intentionally exposed only as a manual Phase 1 test action.
+/// Sends real left clicks to client-relative points in the selected game window.
+/// The fast path focuses the game once, then sends a sequence of validated clicks.
 /// </summary>
 public sealed class MouseInputService
 {
@@ -23,6 +23,42 @@ public sealed class MouseInputService
 
     public MouseClickResult ClickClientPoint(GameWindowInfo target, int clientX, int clientY)
     {
+        var focus = FocusTarget(target, 120);
+        if (!focus.Success)
+            return focus;
+
+        return ClickClientPointFast(target, clientX, clientY);
+    }
+
+    /// <summary>
+    /// Brings the target window to the foreground once before a batch.
+    /// </summary>
+    public MouseClickResult FocusTarget(GameWindowInfo target, int settleDelayMs = 120)
+    {
+        if (!WindowCatalog.TryGetClientBounds(
+                target.Handle, out var left, out var top, out var width, out var height))
+        {
+            return Failed("Jendela target tidak aktif atau sedang diminimalkan.");
+        }
+
+        SetForegroundWindow(target.Handle);
+        if (settleDelayMs > 0)
+            Thread.Sleep(Math.Clamp(settleDelayMs, 0, 1000));
+
+        if (GetForegroundWindow() != target.Handle)
+            return Failed("Jendela game belum menjadi foreground. Tidak ada klik yang dikirim.");
+
+        return new MouseClickResult(
+            true, 0, 0, left, top,
+            $"Fokus diarahkan ke jendela game ({width}×{height}).");
+    }
+
+    /// <summary>
+    /// Sends one click without refocusing or adding a per-click focus delay.
+    /// Intended for a reviewed batch after FocusTarget has succeeded.
+    /// </summary>
+    public MouseClickResult ClickClientPointFast(GameWindowInfo target, int clientX, int clientY)
+    {
         if (!WindowCatalog.TryGetClientBounds(
                 target.Handle, out var left, out var top, out var width, out var height))
         {
@@ -30,16 +66,13 @@ public sealed class MouseInputService
         }
 
         if (clientX < 0 || clientY < 0 || clientX >= width || clientY >= height)
-        {
             return Failed($"Koordinat di luar area game ({width}×{height}).");
-        }
+
+        if (GetForegroundWindow() != target.Handle)
+            return Failed("Fokus jendela game berubah. Antrean dihentikan sebelum klik berikutnya.");
 
         var screenX = left + clientX;
         var screenY = top + clientY;
-
-        // The user explicitly confirms the test click in the UI before this method is called.
-        SetForegroundWindow(target.Handle);
-        Thread.Sleep(120);
 
         if (!SetCursorPos(screenX, screenY))
             return Failed("Windows gagal memindahkan pointer ke koordinat target.");
@@ -74,7 +107,7 @@ public sealed class MouseInputService
 
         return new MouseClickResult(
             true, clientX, clientY, screenX, screenY,
-            $"Klik uji terkirim ke client ({clientX}, {clientY}) / screen ({screenX}, {screenY}).");
+            $"Klik terkirim ke client ({clientX}, {clientY}) / screen ({screenX}, {screenY}).");
     }
 
     private static MouseClickResult Failed(string message)
@@ -113,5 +146,7 @@ public sealed class MouseInputService
 
     [DllImport("user32.dll")]
     private static extern bool SetForegroundWindow(nint hWnd);
-}
 
+    [DllImport("user32.dll")]
+    private static extern nint GetForegroundWindow();
+}
