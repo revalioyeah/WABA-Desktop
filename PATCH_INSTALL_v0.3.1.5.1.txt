@@ -1,0 +1,15 @@
+WABA Desktop v0.3.1.5.1 - Compile Fix
+
+Perbaikan: mengubah tipe spacingBetweenTenAndToken menjadi double pada
+ShelfItemDetector.cs agar relational pattern (< 65d / > 145d) tidak mencoba
+mengonversi konstanta double ke int. Nilai koordinat dan algoritma deteksi
+tidak diubah.
+
+Pemasangan:
+1. Ekstrak ZIP.
+2. Salin folder WABA-Desktop-main/src ke root repository dengan mempertahankan struktur folder.
+3. Timpa ShelfItemDetector.cs yang lama.
+4. Commit dan push, lalu jalankan GitHub Actions.
+
+Validasi kompilasi harus dilakukan oleh GitHub Actions; paket ini belum
+diklaim berhasil dipublish di lingkungan lokal.

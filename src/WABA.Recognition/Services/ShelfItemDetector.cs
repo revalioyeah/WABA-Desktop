@@ -493,7 +493,7 @@ public sealed class ShelfItemDetector
             return null;
 
         var spacingBetweenWalletAndTen = (tenGb.ClientX - wallet.ClientX) / 3d;
-        var spacingBetweenTenAndToken = token.ClientX - tenGb.ClientX;
+        double spacingBetweenTenAndToken = token.ClientX - tenGb.ClientX;
 
         if (spacingBetweenWalletAndTen is < 65d or > 145d ||
             spacingBetweenTenAndToken is < 65d or > 145d ||
